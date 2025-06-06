@@ -8,7 +8,7 @@ module.exports = {
         .setDescription('Give Verified role to all members, and remove Unverified role (manual run).'),
 
     async execute(interaction) {
-        // Only allow Admins to run
+        // Only allow Admins to run this
         if (!interaction.member.permissions.has('Administrator')) {
             return interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
         }
@@ -18,13 +18,15 @@ module.exports = {
 
         await interaction.reply('🔄 Fetching members and updating roles... This may take a moment.');
 
-       try {
-    const members = await interaction.guild.members.fetch();
-} catch (err) {
-    console.error('❌ Failed to fetch members:', err);
-    return interaction.reply('❌ Failed to fetch members — please try again.');
-}
+        // Safe fetch with try/catch
+        let members;
 
+        try {
+            members = await interaction.guild.members.fetch();
+        } catch (err) {
+            console.error('❌ Failed to fetch members:', err);
+            return interaction.followUp('❌ Failed to fetch members — please try again.');
+        }
 
         let verifiedCount = 0;
         let unverifiedRemovedCount = 0;
