@@ -18,7 +18,13 @@ module.exports = {
 
         await interaction.reply('🔄 Fetching members and updating roles... This may take a moment.');
 
-        const members = await interaction.guild.members.fetch();
+       try {
+    const members = await interaction.guild.members.fetch();
+} catch (err) {
+    console.error('❌ Failed to fetch members:', err);
+    return interaction.reply('❌ Failed to fetch members — please try again.');
+}
+
 
         let verifiedCount = 0;
         let unverifiedRemovedCount = 0;
