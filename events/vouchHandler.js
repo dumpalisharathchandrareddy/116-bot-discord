@@ -2,7 +2,7 @@ const { Events } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
 
-const VOUCHES_CHANNEL_ID = "1369199837643542528";
+const VOUCHES_CHANNEL_ID = "1380323340987797635";
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 const OWNER_ID = "666746569193816086";
 

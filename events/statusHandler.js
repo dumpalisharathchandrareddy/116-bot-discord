@@ -1,6 +1,6 @@
 const { EmbedBuilder, Events } = require("discord.js");
 
-const STATUS_CHANNEL_ID = "1369199414077554749";
+const STATUS_CHANNEL_ID = "1380321009877520455";
 const GUILD_ID = process.env.GUILD_ID;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 const OWNER_ID = "666746569193816086";
