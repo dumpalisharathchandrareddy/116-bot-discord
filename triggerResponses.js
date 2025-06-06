@@ -1,30 +1,30 @@
 module.exports = {
   staffOnlyTriggers: {
     enjoy:
-      "Glad you enjoyed! If you’re happy with your experience, please leave us a vouch in <#1369199837643542528> and tag <@&1369794789553475704>—it really helps us out! 🙏",
+      "Glad you enjoyed! If you’re happy with your experience, please leave us a vouch in <#1380323340987797635> and tag <@&1369794789553475704>—it really helps us out! 🙏",
     delivered:
-      "Your order has been delivered! If everything was good, we’d love a vouch in <#1369199837643542528>. Don’t forget to tag staff to show your appreciation!",
+      "Your order has been delivered! If everything was good, we’d love a vouch in <#1380323340987797635>. Don’t forget to tag staff to show your appreciation!",
     escalate:
       "We’re getting a senior staff member to help with your ticket. Thank you for your patience!",
     "internal check":
       "Just double-checking everything for you! If you have feedback, let us know—or leave us a vouch if you loved the service!",
     reminder:
-      "Quick reminder: If you’re happy with your order, a vouch in <#1369199837643542528> helps us serve more people like you!",
+      "Quick reminder: If you’re happy with your order, a vouch in <#1380323340987797635> helps us serve more people like you!",
     followup:
       "Just following up! If you have any questions or need more help, let us know—and don’t forget you can leave feedback anytime.",
-    tip: "Did you know? Leaving a vouch in <#1369199837643542528> only takes a moment and really supports us!",
+    tip: "Did you know? Leaving a vouch in <#1380323340987797635> only takes a moment and really supports us!",
     feedback:
-      "We care about your experience! Feel free to share feedback or vouch in <#1369199837643542528> if you were satisfied.",
+      "We care about your experience! Feel free to share feedback or vouch in <#1380323340987797635> if you were satisfied.",
     delay:
       "Sorry for the wait! We’re working on your order. Thanks for your patience, and if you’re happy at the end, a vouch would mean a lot.",
     "good job":
-      "Thanks for letting us know! If you think we did a good job, a vouch in <#1369199837643542528> makes our day.",
+      "Thanks for letting us know! If you think we did a good job, a vouch in <#1380323340987797635> makes our day.",
   },
   dualRoleTriggers: {
     "thank you": {
       staff:
         "Thank YOU for Ordering from us! Always remember to mention in the vouch channel.",
-      user: "You're welcome! Glad you chose us. If you enjoyed the service, a vouch in <#1369199837643542528> helps us a lot!",
+      user: "You're welcome! Glad you chose us. If you enjoyed the service, a vouch in <#1380323340987797635> helps us a lot!",
     },
     thanks: {
       staff:
@@ -43,7 +43,7 @@ module.exports = {
   },
   userOnlyTriggers: {
     "good service":
-      "We appreciate your feedback! If you enjoyed our service, vouch in <#1369199837643542528> and tag staff.",
+      "We appreciate your feedback! If you enjoyed our service, vouch in <#1380323340987797635> and tag staff.",
     "fast delivery":
       "Glad we were speedy! If you’re satisfied, a vouch helps us grow.",
     amazing:
@@ -69,7 +69,7 @@ module.exports = {
     "order done":
       "Order complete—thanks for choosing us! Vouch and tag staff if you had a good experience.",
     delivered:
-      "Hope your meal was great! Vouch in <#1369199837643542528> if you’re happy.",
+      "Hope your meal was great! Vouch in <#1380323340987797635> if you’re happy.",
     help: "If you need help, just type your question here or tag staff.",
     issue:
       "Let us know the details, and we’ll fix it fast. Tag staff if urgent.",

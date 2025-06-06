@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const fs = require("fs");
 
-const COMPLETED_CATEGORY_ID = "1374659946603483136";
+const COMPLETED_CATEGORY_ID = "1380405804267606148";
 const LOG_CHANNEL_ID = "1374665062635147304";
 const CUSTOMER_ROLE_ID = "1378016352169754695";
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1369794789553475704";
