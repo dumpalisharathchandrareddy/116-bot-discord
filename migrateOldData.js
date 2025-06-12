@@ -1,31 +1,52 @@
 const fs = require("fs");
 const pool = require("./db");
 
-async function createTables() {
+async function resetTables() {
+  console.log("🧨 Dropping existing tables...");
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS points (
+    DROP TABLE IF EXISTS
+      giveaway_state,
+      giveaway_entries,
+      completed_tickets,
+      owed,
+      referrals,
+      points
+    CASCADE;
+  `);
+  console.log("✅ Tables dropped");
+}
+
+async function createTables() {
+  console.log("📦 Recreating tables...");
+  await pool.query(`
+    CREATE TABLE points (
       user_id TEXT PRIMARY KEY,
       points INTEGER DEFAULT 0
     );
-    CREATE TABLE IF NOT EXISTS referrals (
+
+    CREATE TABLE referrals (
       user_id TEXT PRIMARY KEY,
       referred_by TEXT,
       referral_count INTEGER DEFAULT 0
     );
-    CREATE TABLE IF NOT EXISTS owed (
+
+    CREATE TABLE owed (
       user_id TEXT PRIMARY KEY,
-      amount NUMERIC DEFAULT 0,
+      amount NUMERIC(10, 2) DEFAULT 0,
       orders INTEGER DEFAULT 0
     );
-    CREATE TABLE IF NOT EXISTS completed_tickets (
+
+    CREATE TABLE completed_tickets (
       ticket_id TEXT PRIMARY KEY,
       completed_at BIGINT
     );
-    CREATE TABLE IF NOT EXISTS giveaway_entries (
+
+    CREATE TABLE giveaway_entries (
       user_id TEXT PRIMARY KEY,
       entries INTEGER DEFAULT 0
     );
-    CREATE TABLE IF NOT EXISTS giveaway_state (
+
+    CREATE TABLE giveaway_state (
       id SERIAL PRIMARY KEY,
       message_id TEXT,
       channel_id TEXT,
@@ -38,7 +59,6 @@ async function createTables() {
 }
 
 async function migrateData() {
-  // Read all JSONs
   const points = JSON.parse(fs.readFileSync("./points.json"));
   const referrals = JSON.parse(fs.readFileSync("./referrals.json"));
   const owed = JSON.parse(fs.readFileSync("./owed.json"));
@@ -47,12 +67,11 @@ async function migrateData() {
   const giveawayState = JSON.parse(fs.readFileSync("./giveaway_state.json", "utf8") || "{}");
 
   // ➤ Points
-  for (const [userId, pointsValue] of Object.entries(points)) {
+  for (const [userId, value] of Object.entries(points)) {
     await pool.query(`
       INSERT INTO points (user_id, points)
       VALUES ($1, $2)
-      ON CONFLICT (user_id) DO UPDATE SET points = EXCLUDED.points
-    `, [userId, pointsValue]);
+    `, [userId, value]);
   }
   console.log("✅ points.json migrated");
 
@@ -60,9 +79,8 @@ async function migrateData() {
   for (const [userId, referredBy] of Object.entries(referrals)) {
     await pool.query(`
       INSERT INTO referrals (user_id, referred_by, referral_count)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (user_id) DO UPDATE SET referred_by = EXCLUDED.referred_by
-    `, [userId, referredBy, 1]); // default referral count = 1
+      VALUES ($1, $2, 1)
+    `, [userId, referredBy]);
   }
   console.log("✅ referrals.json migrated");
 
@@ -73,7 +91,6 @@ async function migrateData() {
     await pool.query(`
       INSERT INTO owed (user_id, amount, orders)
       VALUES ($1, $2, $3)
-      ON CONFLICT (user_id) DO UPDATE SET amount = EXCLUDED.amount, orders = EXCLUDED.orders
     `, [userId, amount, orders]);
   }
   console.log("✅ owed.json migrated");
@@ -83,7 +100,6 @@ async function migrateData() {
     await pool.query(`
       INSERT INTO completed_tickets (ticket_id, completed_at)
       VALUES ($1, $2)
-      ON CONFLICT (ticket_id) DO UPDATE SET completed_at = EXCLUDED.completed_at
     `, [ticketId, timestamp]);
   }
   console.log("✅ completed_tickets.json migrated");
@@ -95,13 +111,11 @@ async function migrateData() {
         await pool.query(`
           INSERT INTO giveaway_entries (user_id, entries)
           VALUES ($1, $2)
-          ON CONFLICT (user_id) DO UPDATE SET entries = EXCLUDED.entries
-        `, [entry, 1]); // default to 1 entry per user
+        `, [entry, 1]);
       } else if (typeof entry === "object") {
         await pool.query(`
           INSERT INTO giveaway_entries (user_id, entries)
           VALUES ($1, $2)
-          ON CONFLICT (user_id) DO UPDATE SET entries = EXCLUDED.entries
         `, [entry.userId, entry.entries || 1]);
       }
     }
@@ -131,9 +145,10 @@ async function migrateData() {
 
 async function main() {
   try {
+    await resetTables();
     await createTables();
     await migrateData();
-    console.log("🎉 Migration complete.");
+    console.log("🎉 Full migration complete!");
   } catch (err) {
     console.error("❌ Migration failed:", err);
   } finally {
