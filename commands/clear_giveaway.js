@@ -11,3 +11,4 @@ module.exports = {
     await giveawayHandler.clearGiveaway(interaction);
   },
 };
+// HI
