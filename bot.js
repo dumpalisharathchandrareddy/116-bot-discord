@@ -1,3 +1,4 @@
+// ===== DISCORD.JS SETUP =====
 const {
   Client,
   GatewayIntentBits,
@@ -10,15 +11,16 @@ const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
 const cron = require("node-cron");
+const db = require("./db.js");
 
+// ===== CUSTOM TRIGGERS AND CONFIG =====
 const {
   staffOnlyTriggers,
   dualRoleTriggers,
   userOnlyTriggers,
 } = require("./triggerResponses.js");
 
-const pointsFile = "./points.json";
-const medals = ["🥇", "🥈", "🥉"];
+const medals = ["🏆", "🧆", "🥇"];
 const LEADERBOARD_CHANNEL_IDS = ["1380323340987797635", "1371930116720169181"];
 
 const VOUCHES_CHANNEL_ID = "1380323340987797635";
@@ -29,6 +31,7 @@ const TICKET_CATEGORY_ID = "1374661309140045825";
 const OWNER_ID = "666746569193816086";
 const BLOCKED_CHANNEL_ID = "1371930116720169181";
 
+// ===== INITIALIZE DISCORD CLIENT =====
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -41,21 +44,11 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
-client.points = {};
-try {
-  client.points = JSON.parse(
-    fs.readFileSync(path.join(__dirname, "points.json"))
-  );
-} catch (err) {
-  console.error("Failed to load points.json:", err);
-}
-
+// ===== LOAD SLASH AND TEXT COMMANDS =====
 client.commands = new Collection();
-
 const commandFiles = fs.readdirSync("./commands");
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
-
   if (command.data && command.data.name) {
     client.commands.set(command.data.name, command);
   } else if (command.name) {
@@ -73,34 +66,30 @@ const vouchHandler = require("./events/vouchHandler.js");
 const statusHandler = require("./events/statusHandler.js");
 const giveawayHandler = require("./events/giveawayHandler.js");
 
-// ===== CORRECT: ONLY ONE GLOBAL REACTION LISTENER =====
+// ===== GIVEAWAY REACTION HANDLER =====
 client.on(Events.MessageReactionAdd, (reaction, user) =>
   giveawayHandler.handleReaction(reaction, user, client)
 );
 
-// ===== INTERACTION HANDLER =====
+// ===== INTERACTION COMMAND HANDLER =====
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
   if (command) await command.execute(interaction, client);
 });
 
-// ===== MESSAGECREATE HANDLER =====
+// ===== MESSAGE EVENT HANDLER =====
 client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
   if (message.channel.id === BLOCKED_CHANNEL_ID) return;
 
-  // Vouch Handler
   await vouchHandler.execute(message, client);
-
-  // Status Handler
   await statusHandler.execute(message, client);
 
-  // Message Commands (!owed, !paid, !reset etc)
+  // Legacy text commands (!command)
   if (message.content.startsWith("!")) {
     const args = message.content.slice(1).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
-
     const command = client.commands.get(commandName);
     if (!command) return;
 
@@ -113,7 +102,7 @@ client.on(Events.MessageCreate, async (message) => {
     return;
   }
 
-  // Staff/User Triggers
+  // Trigger Responses
   const content = message.content.toLowerCase();
   const member = await message.guild?.members
     .fetch(message.author.id)
@@ -131,7 +120,7 @@ client.on(Events.MessageCreate, async (message) => {
     }
   }
 
-  // Dual triggers
+  // Triggers that respond to both staff and users
   for (const trigger in dualRoleTriggers) {
     if (content.includes(trigger)) {
       if (isStaff) {
@@ -154,29 +143,28 @@ client.on(Events.MessageCreate, async (message) => {
   }
 });
 
-// ===== AUTO-LEADERBOARD CRON =====
+// ===== DAILY LEADERBOARD POSTER (10AM EST) =====
 cron.schedule(
   "0 10 * * *",
   async () => {
     try {
-      const points = JSON.parse(fs.readFileSync(pointsFile, "utf-8"));
-      const sorted = Object.entries(points)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 10);
+      // Query top 10 users from database
+      const { rows } = await db.query("SELECT * FROM points ORDER BY points DESC LIMIT 10");
+      if (!rows.length) return;
 
-      if (sorted.length === 0) return;
-
+      // Fetch usernames
       const userFetches = await Promise.all(
-        sorted.map(([userId]) => client.users.fetch(userId).catch(() => null))
+        rows.map((row) => client.users.fetch(row.user_id).catch(() => null))
       );
 
+      // Format leaderboard
       let leaderboardText = "";
-      sorted.forEach(([userId, pts], index) => {
+      rows.forEach(({ user_id, points }, index) => {
         const rank = medals[index] || `#${index + 1}`;
-        const mention = `<@${userId}>`;
-        leaderboardText += `${rank}  ${mention}  —  **${pts} pts**\n`;
+        leaderboardText += `${rank}  <@${user_id}>  —  **${points} pts**\n`;
       });
 
+      // Use top user avatar or fallback to bot's
       const topUser = userFetches[0];
       const avatarUrl =
         topUser?.displayAvatarURL({ size: 256 }) ||
@@ -189,6 +177,7 @@ cron.schedule(
         .setThumbnail(avatarUrl)
         .setFooter({ text: "Top 10 users by points | 116 bot" });
 
+      // Post leaderboard to all defined channels
       for (const channelId of LEADERBOARD_CHANNEL_IDS) {
         const channel = await client.channels.fetch(channelId).catch(() => null);
         if (channel) {
@@ -196,9 +185,7 @@ cron.schedule(
         }
       }
 
-      console.log(
-        "[Leaderboard] Posted daily leaderboard at 10 AM EST to both channels."
-      );
+      console.log("[Leaderboard] Posted daily leaderboard at 10 AM EST to both channels.");
     } catch (err) {
       console.error("Failed to send daily leaderboard:", err);
     }
@@ -208,9 +195,9 @@ cron.schedule(
   }
 );
 
-// ===== REST OF YOUR EVENTS (NO CHANGE NEEDED) =====
+// ===== IMPORT OTHER EVENT HANDLERS =====
 require("./events/ticketQueue.js")(client);
 require("./events/completedTickets.js")(client);
 
-// ===== LOGIN =====
+// ===== BOT LOGIN =====
 client.login(process.env.TOKEN);

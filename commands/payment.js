@@ -46,6 +46,10 @@ module.exports = {
         paymentLabel = "Zelle";
         paymentInfo = "9592401891";
         break;
+              case "zelle":
+        paymentLabel = "Apple Pay";
+        paymentInfo = "csharath301@icloud.com";
+        break;
       case "paypal":
         paymentLabel = "PayPal";
         paymentInfo = "9592401891";

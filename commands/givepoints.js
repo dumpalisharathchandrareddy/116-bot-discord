@@ -3,10 +3,8 @@ const {
   EmbedBuilder,
   PermissionFlagsBits,
 } = require("discord.js");
-const fs = require("fs");
-const path = require("path");
+const pool = require("../db");
 
-const pointsFile = path.join(__dirname, "../points.json");
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1369794789553475704";
 const OWNER_ID = "666746569193816086";
 
@@ -26,6 +24,7 @@ module.exports = {
         .setDescription("Number of points to give")
         .setRequired(true),
     ),
+
   async execute(interaction) {
     const member = interaction.member;
     const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
@@ -61,7 +60,6 @@ module.exports = {
     }
 
     const targetIsStaff = targetMember.roles.cache.has(STAFF_ROLE_ID);
-
     if (targetIsStaff && !isOwner) {
       return interaction.reply({
         content: "❌ You cannot give points to Staff members.",
@@ -69,26 +67,34 @@ module.exports = {
       });
     }
 
-    let points = {};
     try {
-      points = JSON.parse(fs.readFileSync(pointsFile, "utf-8"));
-    } catch {
-      points = {};
+      const existing = await pool.query("SELECT points FROM points WHERE user_id = $1", [user.id]);
+
+      if (existing.rowCount === 0) {
+        await pool.query("INSERT INTO points (user_id, points) VALUES ($1, $2)", [user.id, amount]);
+      } else {
+        await pool.query("UPDATE points SET points = points + $1 WHERE user_id = $2", [amount, user.id]);
+      }
+
+      const result = await pool.query("SELECT points FROM points WHERE user_id = $1", [user.id]);
+      const totalPoints = result.rows[0].points;
+
+      const embed = new EmbedBuilder()
+        .setTitle("Points Given!")
+        .setDescription(
+          `✅ <@${user.id}> received **${amount} point${amount !== 1 ? "s" : ""}**.\nNew total: **${totalPoints}**`,
+        )
+        .setColor(0x2ecc71)
+        .setTimestamp()
+        .setFooter({ text: `Given by ${interaction.user.tag}` });
+
+      await interaction.reply({ embeds: [embed] });
+    } catch (error) {
+      console.error("givepoints error:", error);
+      await interaction.reply({
+        content: "❌ An error occurred while giving points.",
+        ephemeral: true,
+      });
     }
-
-    points[user.id] = (points[user.id] || 0) + amount;
-
-    fs.writeFileSync(pointsFile, JSON.stringify(points, null, 2));
-
-    const embed = new EmbedBuilder()
-      .setTitle("Points Given!")
-      .setDescription(
-        `✅ <@${user.id}> received **${amount} point${amount !== 1 ? "s" : ""}**.\nNew total: **${points[user.id]}**`,
-      )
-      .setColor(0x2ecc71)
-      .setTimestamp()
-      .setFooter({ text: `Given by ${interaction.user.tag}` });
-
-    await interaction.reply({ embeds: [embed] });
   },
 };

@@ -1,149 +1,114 @@
-const fs = require("fs");
-const path = require("path");
 const { EmbedBuilder } = require("discord.js");
+const pool = require("../db");
 
-const giveawayStateFile = path.join(__dirname, "../giveaway_state.json");
-const giveawayEntriesFile = path.join(__dirname, "../giveaway_entries.json");
-const pointsFile = path.join(__dirname, "../points.json");
-const owedFile = path.join(__dirname, "../owed.json");
-
-const ENTRY_EMOJI = "🎁"; // Gift emoji
+const ENTRY_EMOJI = "🎁";
 const MIN_ENTRIES = 20;
 
 module.exports = {
   async startGiveaway(interaction) {
-    const embed = new EmbedBuilder()
-      .setTitle("🎁 Daily Giveaway - NO SERVICE FEE Order!")
-      .setDescription(
-        `✅ React with 🎁 to enter!\n` +
+    try {
+      const embed = new EmbedBuilder()
+        .setTitle("🎁 Daily Giveaway - NO SERVICE FEE Order!")
+        .setDescription(
+          `✅ React with 🎁 to enter!\n` +
           `✅ Cost: **1 point**\n` +
-          `✅ Must have **1+ completed order today**\n` +
           `✅ Minimum **${MIN_ENTRIES} entries required** for giveaway to run.\n\n` +
-          `**Prize:** Your next order will be **NO SERVICE FEE** (you still pay Uber fees + food)`,
-      )
-      .setColor(0xffc107)
-      .setFooter({ text: "Daily Giveaway - Ends Today" })
-      .setTimestamp();
+          `**Prize:** Your next order will be **NO SERVICE FEE** (you still pay Uber fees + food)`
+        )
+        .setColor(0xffc107)
+        .setFooter({ text: "Daily Giveaway - Starts now" })
+        .setTimestamp();
 
-    const giveawayMessage = await interaction.channel.send({ embeds: [embed] });
-    await giveawayMessage.react(ENTRY_EMOJI);
+      const giveawayMessage = await interaction.channel.send({ embeds: [embed] });
+      await giveawayMessage.react(ENTRY_EMOJI);
 
-    const state = {
-      messageId: giveawayMessage.id,
-      channelId: interaction.channel.id,
-    };
-    fs.writeFileSync(giveawayStateFile, JSON.stringify(state, null, 2));
+      await pool.query(
+        `INSERT INTO giveaway_state (message_id, channel_id, is_active, prize) VALUES ($1, $2, $3, $4)`,
+        [giveawayMessage.id, interaction.channel.id, true, "NO SERVICE FEE Order"]
+      );
 
-    await interaction.reply({
-      content: "✅ Giveaway started!",
-      ephemeral: true,
-    });
+      await interaction.reply({ content: "✅ Giveaway started!", ephemeral: true });
+    } catch (error) {
+      console.error("startGiveaway error:", error);
+    }
   },
 
   async pickWinner(interaction) {
-    let entries = [];
     try {
-      entries = JSON.parse(fs.readFileSync(giveawayEntriesFile, "utf-8"));
-    } catch {
-      entries = [];
-    }
+      const result = await pool.query(`SELECT user_id FROM giveaway_entries`);
+      const entries = result.rows.map(row => row.user_id);
 
-    if (entries.length < MIN_ENTRIES) {
-      return interaction.reply({
-        content: `❌ Not enough entries! ${MIN_ENTRIES} required. Currently: ${entries.length}.`,
-        ephemeral: true,
-      });
-    }
+      if (entries.length < MIN_ENTRIES) {
+        return interaction.reply({
+          content: `❌ Not enough entries! ${MIN_ENTRIES} required. Currently: ${entries.length}.`,
+          ephemeral: true
+        });
+      }
 
-    const winnerId = entries[Math.floor(Math.random() * entries.length)];
-    await interaction.reply(
-      `🎉 **Congratulations <@${winnerId}>!** You won today's giveaway! 🎁\n` +
-        `👉 Your next order will be **NO SERVICE FEE** (Uber fees & food still paid)`,
-    );
+      const winnerId = entries[Math.floor(Math.random() * entries.length)];
+      await interaction.reply(
+        `🎉 **Congratulations <@${winnerId}>!** You won today's giveaway! 🎁\n` +
+        `👉 Your next order will be **NO SERVICE FEE** (Uber fees & food still paid)`
+      );
+    } catch (error) {
+      console.error("pickWinner error:", error);
+    }
   },
 
   async clearGiveaway(interaction) {
-    fs.writeFileSync(giveawayEntriesFile, "[]");
-    fs.writeFileSync(giveawayStateFile, "{}");
-
-    await interaction.reply({
-      content: "✅ Giveaway cleared!",
-      ephemeral: true,
-    });
+    try {
+      await pool.query(`DELETE FROM giveaway_entries`);
+      await pool.query(`DELETE FROM giveaway_state`);
+      await interaction.reply({ content: "✅ Giveaway cleared!", ephemeral: true });
+    } catch (error) {
+      console.error("clearGiveaway error:", error);
+    }
   },
 
   async handleReaction(reaction, user, client) {
     if (user.bot) return;
 
-    let state = {};
     try {
-      state = JSON.parse(fs.readFileSync(giveawayStateFile));
-    } catch {
-      state = {};
-    }
+      const stateResult = await pool.query(`SELECT * FROM giveaway_state ORDER BY id DESC LIMIT 1`);
+      const state = stateResult.rows[0];
+      if (!state) return;
 
-    if (
-      reaction.message.id !== state.messageId ||
-      reaction.message.channel.id !== state.channelId
-    ) {
-      return;
-    }
+      if (
+        reaction.message.id !== state.message_id ||
+        reaction.message.channel.id !== state.channel_id ||
+        reaction.emoji.name !== ENTRY_EMOJI
+      ) return;
 
-    if (reaction.emoji.name !== ENTRY_EMOJI) return;
+      const guild = reaction.message.guild;
+      const member = await guild.members.fetch(user.id).catch(() => null);
+      if (!member) return;
 
-    const guild = reaction.message.guild;
-    const member = await guild.members.fetch(user.id).catch(() => null);
-    if (!member) return;
+      const pointsResult = await pool.query(`SELECT points FROM points WHERE user_id = $1`, [user.id]);
+      const userPoints = pointsResult.rows[0]?.points || 0;
 
-    let points = {};
-    try {
-      points = JSON.parse(fs.readFileSync(pointsFile));
-    } catch {
-      points = {};
-    }
+      if (userPoints < 1) {
+        await reaction.users.remove(user.id).catch(() => {});
+        try {
+          await user.send(
+            `❌ You can't enter today's giveaway:\n` +
+            `• You have **${userPoints} point(s)** (need at least 1)\n\n` +
+            `👉 You must place an order **and vouch** to earn points.`
+          );
+        } catch {}
+        return;
+      }
 
-    let owed = {};
-    try {
-      owed = JSON.parse(fs.readFileSync(owedFile));
-    } catch {
-      owed = {};
-    }
+      const alreadyEntered = await pool.query(`SELECT 1 FROM giveaway_entries WHERE user_id = $1`, [user.id]);
+      if (alreadyEntered.rowCount > 0) return;
 
-    const hasPoints = (points[user.id] || 0) >= 1;
-    const hasCompletedOrder = owed[user.id]?.orders >= 1;
-
-    if (!hasPoints || !hasCompletedOrder) {
-      await reaction.users.remove(user.id).catch(() => {});
-      try {
-        await user.send(
-          `❌ You cannot enter today's giveaway:\n` +
-            `• 1+ point required → You have **${points[user.id] || 0}**\n` +
-            `• Completed order required → You have **${owed[user.id]?.orders || 0}**\n\n` +
-            `Please try again tomorrow!`,
-        );
-      } catch {}
-      return;
-    }
-
-    points[user.id] -= 1;
-    fs.writeFileSync(pointsFile, JSON.stringify(points, null, 2));
-
-    let entries = [];
-    try {
-      entries = JSON.parse(fs.readFileSync(giveawayEntriesFile));
-    } catch {
-      entries = [];
-    }
-
-    if (!entries.includes(user.id)) {
-      entries.push(user.id);
-      fs.writeFileSync(giveawayEntriesFile, JSON.stringify(entries, null, 2));
+      await pool.query(`UPDATE points SET points = points - 1 WHERE user_id = $1`, [user.id]);
+      await pool.query(`INSERT INTO giveaway_entries (user_id, entries) VALUES ($1, 1)`, [user.id]);
 
       try {
-        await user.send(
-          `✅ You entered the giveaway! 🎁 1 point was deducted.`,
-        );
+        await user.send(`✅ You successfully entered the giveaway! 1 point was deducted.`);
       } catch {}
+    } catch (error) {
+      console.error("handleReaction error:", error);
     }
-  },
+  }
 };

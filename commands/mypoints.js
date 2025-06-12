@@ -1,8 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const fs = require("fs");
-const path = require("path");
+const pool = require("../db");
 
-const pointsFile = path.join(__dirname, "../points.json");
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1369794789553475704";
 const OWNER_ID = "666746569193816086";
 
@@ -14,40 +12,43 @@ module.exports = {
       option
         .setName("user")
         .setDescription("User to check points for (staff/owner only)")
-        .setRequired(false),
+        .setRequired(false)
     ),
+
   async execute(interaction) {
-    const member = interaction.member;
-    const isStaff = member.roles.cache.has(STAFF_ROLE_ID);
-    const isOwner = interaction.user.id === OWNER_ID;
+    try {
+      const member = interaction.member;
+      const isStaff = member.roles.cache.has(STAFF_ROLE_ID);
+      const isOwner = interaction.user.id === OWNER_ID;
 
-    const targetUser = interaction.options.getUser("user") || interaction.user;
+      const targetUser = interaction.options.getUser("user") || interaction.user;
 
-    if (interaction.options.getUser("user") && !(isStaff || isOwner)) {
-      return interaction.reply({
-        content: "❌ Only Staff or Owner can view other users' points.",
+      if (interaction.options.getUser("user") && !(isStaff || isOwner)) {
+        return interaction.reply({
+          content: "❌ Only Staff or Owner can view other users' points.",
+          ephemeral: true,
+        });
+      }
+
+      const result = await pool.query("SELECT points FROM points WHERE user_id = $1", [targetUser.id]);
+      const userPoints = result.rows[0]?.points || 0;
+
+      const embed = new EmbedBuilder()
+        .setTitle("Points Balance")
+        .setDescription(
+          `⭐ <@${targetUser.id}> has **${userPoints}** point${userPoints !== 1 ? "s" : ""}.`
+        )
+        .setColor(0xf1c40f)
+        .setTimestamp()
+        .setFooter({ text: `Requested by ${interaction.user.tag}` });
+
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+    } catch (error) {
+      console.error("mypoints error:", error);
+      await interaction.reply({
+        content: "❌ Failed to retrieve points.",
         ephemeral: true,
       });
     }
-
-    let points = {};
-    try {
-      points = JSON.parse(fs.readFileSync(pointsFile, "utf-8"));
-    } catch {
-      points = {};
-    }
-
-    const userPoints = points[targetUser.id] || 0;
-
-    const embed = new EmbedBuilder()
-      .setTitle("Points Balance")
-      .setDescription(
-        `⭐ <@${targetUser.id}> has **${userPoints}** point${userPoints !== 1 ? "s" : ""}.`,
-      )
-      .setColor(0xf1c40f)
-      .setTimestamp()
-      .setFooter({ text: `Requested by ${interaction.user.tag}` });
-
-    await interaction.reply({ embeds: [embed], ephemeral: true });
   },
 };
