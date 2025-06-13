@@ -3,46 +3,41 @@ const db = require("../db.js");
 
 module.exports = (client) => {
   const COMPLETED_CATEGORY_ID = "1374659946603483136";
-  const YOUR_GUILD_ID = "1369186844268433488";
+  const GUILD_ID = "1369186844268433488";
 
-  // Load completed tickets on bot ready
-  client.once(Events.ClientReady, async () => {
-    const guild = await client.guilds.fetch(YOUR_GUILD_ID);
-    const now = Date.now();
+  // Auto-delete every hour
+  setInterval(async () => {
+    try {
+      const now = Date.now();
+      const result = await db.query("SELECT ticket_id, completed_at FROM completed_tickets");
 
-    const completedData = await db.query("SELECT ticket_id, completed_at FROM completed_tickets");
+      for (const row of result.rows) {
+        const msSinceCompleted = now - Number(row.completed_at);
+        const isExpired = msSinceCompleted > 2 * 60 * 60 * 1000;
 
-    guild.channels.cache.forEach(async (channel) => {
-      if (
-        channel.parentId === COMPLETED_CATEGORY_ID &&
-        channel.name.startsWith("ticket-")
-      ) {
-        const row = completedData.rows.find((r) => r.ticket_id === channel.id);
-        if (row) {
-          const msSinceMoved = now - Number(row.completed_at);
-          const msLeft = 2.5 * 60 * 60 * 1000 - msSinceMoved;
+        if (isExpired) {
+          try {
+            const guild = await client.guilds.fetch(GUILD_ID);
+            const channel = guild.channels.cache.get(row.ticket_id) || await guild.channels.fetch(row.ticket_id).catch(() => null);
 
-          const deleteChannel = async () => {
-            try {
+            if (channel) {
               await channel.send("🗑️ Deleting this completed ticket channel now.");
-              await channel.delete("Auto-deleted after 2.5 hours in completed category");
-              await db.query("DELETE FROM completed_tickets WHERE ticket_id = $1", [channel.id]);
-            } catch (e) {
-              console.error("Auto-delete error:", e);
+              await channel.delete("Auto-deleted after 2 hours in completed category");
             }
-          };
 
-          if (msLeft <= 0) {
-            await deleteChannel();
-          } else {
-            setTimeout(deleteChannel, msLeft);
+            await db.query("DELETE FROM completed_tickets WHERE ticket_id = $1", [row.ticket_id]);
+            console.log(`✅ Deleted expired ticket: ${row.ticket_id}`);
+          } catch (err) {
+            console.error(`❌ Failed to delete ticket ${row.ticket_id}:`, err.message);
           }
         }
       }
-    });
-  });
+    } catch (err) {
+      console.error("❌ Failed to check completed tickets:", err);
+    }
+  }, 60 * 60 * 1000); // Run every 1 hour
 
-  // Track when ticket is moved to completed
+  // Track when a ticket is moved to completed
   client.on(Events.ChannelUpdate, async (oldChannel, newChannel) => {
     if (
       newChannel.type === 0 &&
@@ -60,16 +55,6 @@ module.exports = (client) => {
       await newChannel.send(
         "✅ This ticket has been marked as completed. This channel will be **automatically deleted in 2.5 hours**. Thank you!"
       );
-
-      setTimeout(async () => {
-        try {
-          await newChannel.send("🗑️ Deleting this completed ticket channel now.");
-          await newChannel.delete("Auto-deleted after 2.5 hours in completed category");
-          await db.query("DELETE FROM completed_tickets WHERE ticket_id = $1", [newChannel.id]);
-        } catch (e) {
-          console.error("Auto-delete error:", e);
-        }
-      }, 2.5 * 60 * 60 * 1000);
     }
   });
 };

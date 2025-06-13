@@ -56,6 +56,10 @@ module.exports = {
       );
     } catch (error) {
       console.error("pickWinner error:", error);
+      await interaction.reply({
+        content: "❌ Failed to pick a winner due to a database error.",
+        ephemeral: true,
+      });
     }
   },
 

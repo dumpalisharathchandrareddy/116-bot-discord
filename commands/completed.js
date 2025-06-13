@@ -10,15 +10,13 @@ const OWNER_ID = "666746569193816086";
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("completed")
-    .setDescription(
-      "Mark this ticket completed, update owed, assign Customer, auto-close (Staff only)"
-    )
+    .setDescription("Mark this ticket completed, update owed and orders (Staff only)")
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
   async execute(interaction) {
     if (!interaction.channel.name.startsWith("ticket-")) {
       return interaction.reply({
-        content: "This command can only be used in ticket channels.",
+        content: "❌ This command can only be used in ticket channels.",
         ephemeral: true,
       });
     }
@@ -31,6 +29,10 @@ module.exports = {
     }
 
     try {
+      const channelId = interaction.channel.id;
+      const now = Date.now();
+
+      // ✅ Update staff owed (if not OWNER)
       if (interaction.user.id !== OWNER_ID) {
         const userId = interaction.user.id;
         const result = await pool.query("SELECT * FROM owed WHERE user_id = $1", [userId]);
@@ -38,34 +40,50 @@ module.exports = {
         if (result.rows.length === 0) {
           await pool.query("INSERT INTO owed (user_id, orders, total) VALUES ($1, 1, 1)", [userId]);
         } else {
-          await pool.query(
-            "UPDATE owed SET orders = orders + 1, total = total + 1 WHERE user_id = $1",
-            [userId]
-          );
+          await pool.query("UPDATE owed SET orders = orders + 1, total = total + 1 WHERE user_id = $1", [userId]);
         }
       }
 
+      // ✅ Set parent to Completed category
       await interaction.channel.setParent(COMPLETED_CATEGORY_ID, {
         lockPermissions: false,
       });
 
-      const customerRole = interaction.guild.roles.cache.get(CUSTOMER_ROLE_ID);
-      if (customerRole) {
-        const members = interaction.channel.members;
-        members.forEach((member) => {
-          if (member.user.bot) return;
-          if (member.roles.cache.has(STAFF_ROLE_ID)) return;
-          if (!member.roles.cache.has(customerRole.id)) {
-            member.roles.add(customerRole).catch(() => {});
-          }
-        });
-      }
-
-      await interaction.channel.send(
-        `✅ This ticket has been marked as completed by <@${interaction.user.id}>!\n` +
-        `⏳ This ticket will automatically close in **2.5 hours**.`
+      // ✅ Track or update completed timestamp
+      await pool.query(
+        `INSERT INTO completed_tickets (ticket_id, completed_at)
+         VALUES ($1, $2)
+         ON CONFLICT (ticket_id) DO UPDATE SET completed_at = EXCLUDED.completed_at`,
+        [channelId, now]
       );
 
+      // ✅ Track member (non-staff) orders & give Customer role
+      const members = interaction.channel.members;
+      for (const member of members.values()) {
+        if (member.user.bot) continue;
+        if (member.roles.cache.has(STAFF_ROLE_ID)) continue;
+
+        // Add Customer role if missing
+        if (!member.roles.cache.has(CUSTOMER_ROLE_ID)) {
+          await member.roles.add(CUSTOMER_ROLE_ID).catch(() => {});
+        }
+
+        // Update or insert order count
+        const res = await pool.query("SELECT * FROM user_orders WHERE user_id = $1", [member.id]);
+        if (res.rows.length === 0) {
+          await pool.query("INSERT INTO user_orders (user_id, total_orders) VALUES ($1, 1)", [member.id]);
+        } else {
+          await pool.query("UPDATE user_orders SET total_orders = total_orders + 1 WHERE user_id = $1", [member.id]);
+        }
+      }
+
+      // ✅ Confirmation Message
+      await interaction.channel.send(
+        `✅ This ticket has been marked as completed by <@${interaction.user.id}>!\n` +
+        `⏳ This ticket will automatically close in **2 hours**.`
+      );
+
+      // ✅ Ephemeral Staff Summary
       let staffMessage = `✅ Ticket moved and logged. Auto-close scheduled.`;
       if (interaction.user.id !== OWNER_ID) {
         const owedData = await pool.query("SELECT * FROM owed WHERE user_id = $1", [interaction.user.id]);
@@ -76,30 +94,28 @@ module.exports = {
           `Ticket moved and logged. Auto-close scheduled.`;
       }
 
-      await interaction.reply({
-        content: staffMessage,
-        ephemeral: true,
-      });
+      await interaction.reply({ content: staffMessage, ephemeral: true });
 
+      // ✅ Log to Log Channel
       const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
       if (logChannel) {
         await logChannel.send(
-          `🗂️ Ticket \`${interaction.channel.name}\` was marked as completed and moved by <@${interaction.user.id}> at <t:${Math.floor(Date.now() / 1000)}:f>.`
+          `🗂️ Ticket \`${interaction.channel.name}\` was marked as completed by <@${interaction.user.id}> at <t:${Math.floor(now / 1000)}:f>.`
         );
       }
 
+      // ✅ Schedule auto-delete in 2.5 hrs (only one scheduled timeout per call)
       setTimeout(async () => {
         try {
           await interaction.channel.delete();
         } catch (err) {
           console.error("Failed to auto-delete ticket:", err);
         }
-      }, 9000000);
+      }, 2.5 * 60 * 60 * 1000);
     } catch (err) {
       console.error("/completed command error:", err);
       await interaction.reply({
-        content:
-          "❌ Failed to complete the ticket or update owed data. Check bot permissions!",
+        content: "❌ Failed to complete the ticket or update data. Check bot permissions.",
         ephemeral: true,
       });
     }
