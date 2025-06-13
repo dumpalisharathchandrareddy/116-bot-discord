@@ -2,7 +2,7 @@ const { EmbedBuilder } = require("discord.js");
 const pool = require("../db");
 
 const ENTRY_EMOJI = "🎁";
-const MIN_ENTRIES = 20;
+const MAX_ENTRIES_AUTO_PICK = 30;
 
 module.exports = {
   async startGiveaway(interaction) {
@@ -10,9 +10,13 @@ module.exports = {
       const embed = new EmbedBuilder()
         .setTitle("🎁 Daily Giveaway - NO SERVICE FEE Order!")
         .setDescription(
-          `✅ React with 🎁 to enter!\n` +
-          `✅ Cost: **1 point**\n` +
-          `✅ Minimum **${MIN_ENTRIES} entries required** for giveaway to run.\n\n` +
+          `✅ React with 🎁 to enter!
+` +
+          `✅ Cost: **1 point**
+` +
+          `🎯 Giveaway remains open until cleared or winner picked.
+
+` +
           `**Prize:** Your next order will be **NO SERVICE FEE** (you still pay Uber fees + food)`
         )
         .setColor(0xffc107)
@@ -38,9 +42,9 @@ module.exports = {
       const result = await pool.query(`SELECT user_id FROM giveaway_entries`);
       const entries = result.rows.map(row => row.user_id);
 
-      if (entries.length < MIN_ENTRIES) {
+      if (entries.length === 0) {
         return interaction.reply({
-          content: `❌ Not enough entries! ${MIN_ENTRIES} required. Currently: ${entries.length}.`,
+          content: `❌ No entries to pick from yet.`,
           ephemeral: true
         });
       }
@@ -99,10 +103,26 @@ module.exports = {
       }
 
       const alreadyEntered = await pool.query(`SELECT 1 FROM giveaway_entries WHERE user_id = $1`, [user.id]);
-      if (alreadyEntered.rowCount > 0) return;
+      if (alreadyEntered.rowCount > 0) {
+        try {
+          await user.send(`⚠️ You already joined the giveaway! If you unreact, your point will NOT be refunded.`);
+        } catch {}
+        return;
+      }
 
       await pool.query(`UPDATE points SET points = points - 1 WHERE user_id = $1`, [user.id]);
       await pool.query(`INSERT INTO giveaway_entries (user_id, entries) VALUES ($1, 1)`, [user.id]);
+
+      const entryCountResult = await pool.query(`SELECT COUNT(*) FROM giveaway_entries`);
+      const currentEntries = parseInt(entryCountResult.rows[0].count);
+
+      if (currentEntries >= MAX_ENTRIES_AUTO_PICK) {
+        const winnerId = await pool.query(`SELECT user_id FROM giveaway_entries ORDER BY RANDOM() LIMIT 1`);
+        await reaction.message.channel.send(
+          `🎉 **Auto-pick triggered!**\n` +
+          `🎊 <@${winnerId.rows[0].user_id}> won today's giveaway for **NO SERVICE FEE**!`
+        );
+      }
 
       try {
         await user.send(`✅ You successfully entered the giveaway! 1 point was deducted.`);
