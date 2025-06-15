@@ -2,7 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const pool = require("../db");
 
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1369794789553475704";
-const MIN_ENTRIES = 20;
+const MIN_ENTRIES = 5;
 
 module.exports = {
   data: new SlashCommandBuilder()
