@@ -8,6 +8,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("mypoints")
     .setDescription("View your points, or another user's points (staff/owner)")
+    .setDefaultMemberPermissions(null)   // 👈 forces visibility to everyone
     .addUserOption((option) =>
       option
         .setName("user")

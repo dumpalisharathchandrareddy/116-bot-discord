@@ -11,7 +11,7 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("completed")
     .setDescription("Mark this ticket completed, update owed and orders (Staff only)")
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+    .setDefaultMemberPermissions(null),
 
   async execute(interaction) {
     if (!interaction.channel.name.startsWith("ticket-")) {
