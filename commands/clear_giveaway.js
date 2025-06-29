@@ -8,12 +8,13 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction) {
+    // reset giveaway data
     await giveawayHandler.clearGiveaway(interaction);
 
-    // Optional: public confirmation log
-    const channel = interaction.channel;
-    await channel.send(
-      `🔁 Giveaway has been reset by <@${interaction.user.id}>.\nYou can now use \`/start_giveaway\` to begin a new one.`
-    );
+    // send an ephemeral confirmation to the staff member who triggered the command
+    await interaction.reply({
+      content: `🔁 Giveaway has been reset.\nYou can now use \`/start_giveaway\` to begin a new one.`,
+      ephemeral: true,          // <-- only visible to the executor
+    });
   },
 };

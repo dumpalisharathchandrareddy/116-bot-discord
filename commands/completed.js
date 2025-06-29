@@ -80,8 +80,36 @@ module.exports = {
       // ✅ Confirmation Message
       await interaction.channel.send(
         `✅ This ticket has been marked as completed by <@${interaction.user.id}>!\n` +
-        `⏳ This ticket will automatically close in **2 hours**.`
+        `⏳ This ticket will automatically close and deleted in **2 hours**.`
       );
+
+      // ── Ping ticket opener + short vouch prompt ──
+let ticketOwnerId = null;
+
+// 1) Try channel.topic (Ticket Tool stores ID there)
+if (interaction.channel.topic) {
+  const m = interaction.channel.topic.match(/\d{17,19}/); // any 17-19-digit ID
+  if (m) ticketOwnerId = m[0];
+}
+
+// 2) Fallback: first non-bot, non-staff member in the channel
+if (!ticketOwnerId) {
+  for (const m of interaction.channel.members.values()) {
+    if (!m.user.bot && !m.roles.cache.has(STAFF_ROLE_ID)) {
+      ticketOwnerId = m.id;
+      break;
+    }
+  }
+}
+
+// 3) Send the short thank-you / vouch prompt
+if (ticketOwnerId) {
+  await interaction.channel.send(
+    `📦 <@${ticketOwnerId}>, your order is **complete** — thanks!\n` +
+    `💬 Like the service? Drop a quick vouch in <#1380323340987797635>, tag <@&1369794789553475704>, and enter <#1380321176676466723>!`
+  );
+}
+
 
       // ✅ Ephemeral Staff Summary
       let staffMessage = `✅ Ticket moved and logged. Auto-close scheduled.`;
@@ -104,14 +132,14 @@ module.exports = {
         );
       }
 
-      // ✅ Schedule auto-delete in 2.5 hrs (only one scheduled timeout per call)
+      // ✅ Schedule auto-delete in 2 hrs (only one scheduled timeout per call)
       setTimeout(async () => {
         try {
           await interaction.channel.delete();
         } catch (err) {
           console.error("Failed to auto-delete ticket:", err);
         }
-      }, 2.5 * 60 * 60 * 1000);
+      }, 2 * 60 * 60 * 1000);
     } catch (err) {
       console.error("/completed command error:", err);
       await interaction.reply({

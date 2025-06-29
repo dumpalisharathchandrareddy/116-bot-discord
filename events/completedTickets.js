@@ -53,7 +53,7 @@ module.exports = (client) => {
       );
 
       await newChannel.send(
-        "✅ This ticket has been marked as completed. This channel will be **automatically deleted in 2.5 hours**. Thank you!"
+        "✅ This ticket has been marked as completed. This channel will be **automatically deleted in 2 hours**. Thank you!"
       );
     }
   });
