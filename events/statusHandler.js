@@ -40,10 +40,10 @@ module.exports = {
 
 **UE Promo Update**
 UE has changed the offer to:
-**$20 OFF on $25 subtotal**
+**$20 OFF on $20 subtotal**
 
-> Add **exactly $25** to your cart to make full use of the promo.
-> Less than $25 = no discount.
+> Add **exactly $20** to your cart to make full use of the promo.
+> Less than $20 = no discount.
 
 **Any store**
 
@@ -88,7 +88,7 @@ No orders are being accepted.
         )
         .setImage("https://media.tenor.com/znjmPw_FF3sAAAAC/close.gif")
         .setColor(0xff0000)
-        .setFooter({ text: "Updated by Info Bot • Currently Closed" })
+        .setFooter({ text: "Updated by 1 1 6  M A S T E R • Currently Closed" })
         .setTimestamp();
     }
 
