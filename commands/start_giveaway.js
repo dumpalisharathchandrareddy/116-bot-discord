@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const giveawayHandler = require("../events/giveawayHandler.js");
 
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1369794789553475704";
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1400611714650607646";
 
 module.exports = {
   data: new SlashCommandBuilder()

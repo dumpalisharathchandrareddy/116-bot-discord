@@ -1,8 +1,8 @@
 const { Events, EmbedBuilder } = require("discord.js");
 
 module.exports = (client) => {
-  const TICKET_CATEGORY_ID = "1380405550583517295"; // updated to open ticket category
-  const OWNER_ID = "666746569193816086";
+  const TICKET_CATEGORY_ID = "1400611724884971550"; // updated to open ticket category
+  const OWNER_ID = "1400611712104927232";
   const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID; // ensure set in .env
 
   client.on(Events.ChannelCreate, async (channel) => {

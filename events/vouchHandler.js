@@ -1,9 +1,9 @@
 const { Events } = require("discord.js");
 const db = require("../db.js");
 
-const VOUCHES_CHANNEL_ID = "1380323340987797635";
+const VOUCHES_CHANNEL_ID = "1400619519986241566";
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
-const OWNER_ID = "666746569193816086";
+const OWNER_ID = "1400611712104927232";
 
 module.exports = {
   name: Events.MessageCreate,

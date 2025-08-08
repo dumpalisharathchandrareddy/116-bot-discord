@@ -1,6 +1,6 @@
 const pool = require("../db");
 
-const OWNER_ID = "666746569193816086"; // Only YOU can run this
+const OWNER_ID = "1400611712104927232"; // Only YOU can run this
 
 module.exports = {
   name: "paid",

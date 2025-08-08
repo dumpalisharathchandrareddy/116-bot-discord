@@ -7,7 +7,7 @@ const {
 } = require("discord.js");
 const pool = require("../db");
 
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1369794789553475704";
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1400611714650607646";
 const MIN_ENTRIES = 5;
 
 module.exports = {
@@ -36,7 +36,8 @@ module.exports = {
         });
       }
 
-      const winnerId = entries[Math.floor(Math.random() * entries.length)];
+      const pickRandom = () => entries[Math.floor(Math.random() * entries.length)];
+      let currentWinnerId = pickRandom();
 
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -50,39 +51,56 @@ module.exports = {
       );
 
       await interaction.reply({
-        content: `👀 Randomly selected: <@${winnerId}>\n\nPress **Confirm** to announce or **Retry** to pick a new one.`,
+        content:
+          `👀 Randomly selected: <@${currentWinnerId}>\n\n` +
+          `Press **Confirm** to announce or **Retry** to pick a new one.`,
         components: [row],
         ephemeral: true,
       });
 
+      // Use a channel collector for maximum reliability; filter to just this interaction's buttons
       const collector = interaction.channel.createMessageComponentCollector({
         filter: (i) =>
           i.user.id === interaction.user.id &&
-          ["confirm_winner", "retry_winner"].includes(i.customId),
+          ["confirm_winner", "retry_winner"].includes(i.customId) &&
+          i.message.interaction?.id === interaction.id,
         time: 60_000,
-        max: 1,
       });
 
       collector.on("collect", async (i) => {
         if (i.customId === "retry_winner") {
-          return module.exports.execute(interaction);
+          // Ensure a new winner (when possible)
+          let next;
+          do {
+            next = pickRandom();
+          } while (entries.length > 1 && next === currentWinnerId);
+          currentWinnerId = next;
+
+          return i.update({
+            content:
+              `👀 Randomly selected: <@${currentWinnerId}>\n\n` +
+              `Press **Confirm** to announce or **Retry** to pick a new one.`,
+            components: [row],
+          });
         }
 
         if (i.customId === "confirm_winner") {
+          // Lock the ephemeral UI
           await i.update({
-            content: `✅ Winner confirmed: <@${winnerId}>`,
+            content: `✅ Winner confirmed: <@${currentWinnerId}>`,
             components: [],
-            ephemeral: true,
           });
 
+          // Public announce
           await interaction.channel.send(
-            `🎉 **Congratulations <@${winnerId}>!** You won today's giveaway! 🎁\n` +
+            `🎉 **Congratulations <@${currentWinnerId}>!** You won today's giveaway! 🎁\n` +
               `👉 Your next order will be **NO SERVICE FEE** (Uber fees & food still paid)\n\n` +
               `🕒 Please claim your prize within **24 hours** by opening a ticket — or it will be **invalid**.`
           );
 
+          // DM winner (best effort)
           try {
-            const user = await interaction.client.users.fetch(winnerId);
+            const user = await interaction.client.users.fetch(currentWinnerId);
             await user.send(
               `🎉 You’ve been selected as the **winner** of today’s giveaway!\n\n` +
                 `👉 Your next order will be **NO SERVICE FEE** (Uber fees & food still paid)\n` +
@@ -90,22 +108,26 @@ module.exports = {
                 `If you believe this is a mistake, please contact staff.`
             );
           } catch (err) {
-            console.warn(`⚠️ Could not DM winner (${winnerId}):`, err);
+            console.warn(`⚠️ Could not DM winner (${currentWinnerId}):`, err);
             await interaction.followUp({
-              content: `⚠️ I couldn’t DM <@${winnerId}>. They might have DMs off.`,
+              content: `⚠️ I couldn’t DM <@${currentWinnerId}>. They might have DMs off.`,
               ephemeral: true,
             });
           }
+
+          collector.stop("confirmed");
         }
       });
 
-      collector.on("end", (collected) => {
-        if (collected.size === 0) {
-          interaction.editReply({
-            content: "⏱️ Timed out. No winner was confirmed.",
-            components: [],
-            ephemeral: true,
-          });
+      collector.on("end", async (_collected, reason) => {
+        if (reason !== "confirmed") {
+          // Timeout path: clean up the ephemeral message if still editable
+          try {
+            await interaction.editReply({
+              content: "⏱️ Timed out. No winner was confirmed.",
+              components: [],
+            });
+          } catch { /* ignore if already edited/removed */ }
         }
       });
     } catch (error) {

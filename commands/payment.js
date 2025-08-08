@@ -24,7 +24,7 @@ module.exports = {
     ),
 
   async execute(interaction) {
-    if (interaction.user.id !== "666746569193816086") {
+    if (interaction.user.id !== "1400611712104927232") {
       return interaction.reply({
         content: "You are not allowed to use this command.",
         ephemeral: true,

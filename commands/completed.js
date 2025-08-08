@@ -1,10 +1,10 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const pool = require("../db");
 
-const COMPLETED_CATEGORY_ID = "1380405804267606148";
-const LOG_CHANNEL_ID = "1374665062635147304";
-const CUSTOMER_ROLE_ID = "1378016352169754695";
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1369794789553475704";
+const COMPLETED_CATEGORY_ID = "1400611725702729848";
+const LOG_CHANNEL_ID = "1400615782727290930";
+const CUSTOMER_ROLE_ID = "1400611715388932108";
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1400611714650607646";
 const OWNER_ID = "666746569193816086";
 
 module.exports = {
@@ -106,7 +106,7 @@ if (!ticketOwnerId) {
 if (ticketOwnerId) {
   await interaction.channel.send(
     `📦 <@${ticketOwnerId}>, your order is **complete** — thanks!\n` +
-    `💬 Like the service? Drop a quick vouch in <#1380323340987797635>, tag <@&1369794789553475704>, and enter <#1380321176676466723>!`
+    `💬 Like the service? Drop a quick vouch in <#1400619519986241566>, tag <@&1400611714650607646>, and enter <#1380321176676466723>!`
   );
 }
 

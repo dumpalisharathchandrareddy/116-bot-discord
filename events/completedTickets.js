@@ -2,8 +2,8 @@ const { Events } = require("discord.js");
 const db = require("../db.js");
 
 module.exports = (client) => {
-  const COMPLETED_CATEGORY_ID = "1374659946603483136";
-  const GUILD_ID = "1369186844268433488";
+  const COMPLETED_CATEGORY_ID = "1400611725702729848";
+  const GUILD_ID = "1400611712104927230";
 
   // Auto-delete every hour
   setInterval(async () => {

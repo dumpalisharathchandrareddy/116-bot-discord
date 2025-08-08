@@ -1,9 +1,9 @@
 const { EmbedBuilder, Events } = require("discord.js");
 
-const STATUS_CHANNEL_ID = "1380321009877520455";
+const STATUS_CHANNEL_ID = "1400619386964017314 && 1400623787816521949"; // status channel IDs
 const GUILD_ID = process.env.GUILD_ID;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
-const OWNER_ID = "666746569193816086";
+const OWNER_ID = "1400611712104927232";
 
 module.exports = {
   name: Events.MessageCreate,

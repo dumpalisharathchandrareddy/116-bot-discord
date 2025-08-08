@@ -1,8 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const pool = require("../db");
 
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1369794789553475704";
-const OWNER_ID = "666746569193816086";
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1400611714650607646";
+const OWNER_ID = "1400611712104927232";
 
 module.exports = {
   data: new SlashCommandBuilder()

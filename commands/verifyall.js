@@ -13,8 +13,8 @@ module.exports = {
             return interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
         }
 
-        const VERIFIED_ROLE_ID = '1379071264660000769';
-        const UNVERIFIED_ROLE_ID = '1371264938240376842';
+        const VERIFIED_ROLE_ID = '1400611716718661848';
+        const UNVERIFIED_ROLE_ID = '1400611718069092422';
 
         await interaction.reply('🔄 Fetching members and updating roles... This may take a moment.');
 
