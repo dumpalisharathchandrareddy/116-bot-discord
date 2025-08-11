@@ -36,8 +36,9 @@ async function renameOrdersChannel(client, force = false) {
     if (!force && now - lastRun < DEBOUNCE_MS) return;
     lastRun = now;
 
-    const total = await fetchTotalOrders();
-    const displayTotal = total + 100; // Always add +100
+    const totalRaw = await fetchTotalOrders();
+    const total = Number(totalRaw) || 0;           // ✅ ensure number
+    const displayTotal = total + 100;              // Always add +100
     const newName = `${EMOJI} ${toBoldCaps("ORDERS")} ${displayTotal}`;
 
     const ch = await client.channels.fetch(CHANNEL_ID).catch(() => null);
