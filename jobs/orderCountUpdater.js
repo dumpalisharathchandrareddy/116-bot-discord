@@ -4,14 +4,41 @@ const { PermissionFlagsBits, ChannelType } = require("discord.js");
 const db = require("../db");
 
 const CHANNEL_ID = process.env.ORDER_COUNT_CHANNEL_ID; // voice or text channel id
+const EMOJI = "🍲"; // change if you want a different vibe
 
-async function renameOrdersChannel(client) {
+// Map normal a–z to Unicode bold caps (Discord won't lowercase these)
+function toBoldCaps(text) {
+  const map = {
+    a: "𝗔", b: "𝗕", c: "𝗖", d: "𝗗", e: "𝗘",
+    f: "𝗙", g: "𝗚", h: "𝗛", i: "𝗜", j: "𝗝",
+    k: "𝗞", l: "𝗟", m: "𝗠", n: "𝗡", o: "𝗢",
+    p: "𝗣", q: "𝗤", r: "𝗥", s: "𝗦", t: "𝗧",
+    u: "𝗨", v: "𝗩", w: "𝗪", x: "𝗫", y: "𝗬",
+    z: "𝗭"
+  };
+  return text.split("").map(ch => map[ch.toLowerCase()] || ch).join("");
+}
+
+let lastName = "";
+let lastRun = 0;
+const DEBOUNCE_MS = 5000;
+
+async function fetchTotalOrders() {
+  const { rows } = await db.query(
+    `SELECT COALESCE(SUM(total_orders), 0) AS total FROM user_orders`
+  );
+  return rows[0]?.total ?? 0;
+}
+
+async function renameOrdersChannel(client, force = false) {
   try {
-    const { rows } = await db.query(
-      `SELECT COALESCE(SUM(total_orders), 0) AS total FROM user_orders`
-    );
-    const total = rows[0]?.total ?? 0;
-    const newName = `orders-${total}`;
+    const now = Date.now();
+    if (!force && now - lastRun < DEBOUNCE_MS) return;
+    lastRun = now;
+
+    const total = await fetchTotalOrders();
+    const displayTotal = total + 100; // Always add +100
+    const newName = `${EMOJI} ${toBoldCaps("ORDERS")} ${displayTotal}`;
 
     const ch = await client.channels.fetch(CHANNEL_ID).catch(() => null);
     if (!ch) {
@@ -19,12 +46,11 @@ async function renameOrdersChannel(client) {
       return;
     }
 
-    // Allow Text, Announcement, and Voice (no posting needed here, just rename)
-    const isRenameableType =
-      ch.type === ChannelType.GuildText ||
-      ch.type === ChannelType.GuildAnnouncement ||
-      ch.type === ChannelType.GuildVoice;
-
+    const isRenameableType = [
+      ChannelType.GuildText,
+      ChannelType.GuildAnnouncement,
+      ChannelType.GuildVoice,
+    ].includes(ch.type);
     if (!isRenameableType) {
       console.warn(`[orders-job] Unsupported channel type for ${CHANNEL_ID}:`, ch.type);
       return;
@@ -37,11 +63,10 @@ async function renameOrdersChannel(client) {
       return;
     }
 
-    if (ch.name !== newName) {
+    if (ch.name !== newName && newName !== lastName) {
       await ch.setName(newName);
+      lastName = newName;
       console.log(`[orders-job] Renamed #${ch.id} → ${newName}`);
-    } else {
-      console.log(`[orders-job] Already up-to-date: ${newName}`);
     }
   } catch (err) {
     console.error("[orders-job] Failed to update orders channel name:", err);
@@ -50,17 +75,19 @@ async function renameOrdersChannel(client) {
 
 module.exports = (client) => {
   if (!CHANNEL_ID) {
-    console.warn("ORDER_COUNT_CHANNEL_ID not set — daily orders rename disabled.");
+    console.warn("ORDER_COUNT_CHANNEL_ID not set — orders rename disabled.");
     return;
   }
 
-  // Run once on ready (so you can verify right away)
   client.once("ready", () => {
-    renameOrdersChannel(client);
+    renameOrdersChannel(client, true);
   });
 
-  // Run every day at 10:00 AM America/New_York
-  cron.schedule("0 10 * * *", () => renameOrdersChannel(client), {
+  cron.schedule("0 10 * * *", () => renameOrdersChannel(client, true), {
     timezone: "America/New_York",
   });
+};
+
+module.exports.updateOrdersCount = async (client) => {
+  await renameOrdersChannel(client, true);
 };

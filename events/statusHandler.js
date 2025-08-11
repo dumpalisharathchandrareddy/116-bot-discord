@@ -14,6 +14,19 @@ const STATUS_POST_CHANNEL_IDS = [
 const GUILD_ID = process.env.GUILD_ID;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 
+// Map normal a–z to Unicode bold caps so Discord won't lowercase them
+function toBoldCaps(text) {
+  const map = {
+    a: "𝗔", b: "𝗕", c: "𝗖", d: "𝗗", e: "𝗘",
+    f: "𝗙", g: "𝗚", h: "𝗛", i: "𝗜", j: "𝗝",
+    k: "𝗞", l: "𝗟", m: "𝗠", n: "𝗡", o: "𝗢",
+    p: "𝗣", q: "𝗤", r: "𝗥", s: "𝗦", t: "𝗧",
+    u: "𝗨", v: "𝗩", w: "𝗪", x: "𝗫", y: "𝗬",
+    z: "𝗭"
+  };
+  return text.split("").map(ch => map[ch.toLowerCase()] || ch).join("");
+}
+
 module.exports = {
   name: Events.MessageCreate,
   async execute(message, client) {
@@ -39,13 +52,13 @@ module.exports = {
       const isStaff = STAFF_ROLE_ID ? member?.roles.cache.has(STAFF_ROLE_ID) : false;
       if (!isStaff) return;
 
-      // Build new name + embed
+      // Build new name (BOLD CAPS) + embed + mention tag
       let newName = "";
       let statusEmbed = null;
-      let mentionTag = "";
+      let mentionTag = "@here";
 
       if (keyword === "open") {
-        newName = "🟢open🟢・status";
+        newName = `🟢 ${toBoldCaps("OPEN")} ・ status`;
         mentionTag = "@everyone";
         statusEmbed = new EmbedBuilder()
           .setTitle("🟢 STATUS: NOW OPEN")
@@ -71,7 +84,7 @@ UE has changed the offer to:
           .setFooter({ text: "Updated by Info Bot • OPEN for orders" })
           .setTimestamp();
       } else if (keyword === "busy") {
-        newName = "🟠busy🟠・status";
+        newName = `🟠 ${toBoldCaps("BUSY")} ・ status`;
         mentionTag = "@here";
         statusEmbed = new EmbedBuilder()
           .setTitle("🟠 STATUS: BUSY")
@@ -89,7 +102,7 @@ Avoid spam, we will respond ASAP
           .setFooter({ text: "Updated by Info Bot • Currently Busy" })
           .setTimestamp();
       } else {
-        newName = "🔴closed🔴・status";
+        newName = `🔴 ${toBoldCaps("CLOSED")} ・ status`;
         mentionTag = "@here";
         statusEmbed = new EmbedBuilder()
           .setTitle("🔴 STATUS: CLOSED")
@@ -108,7 +121,7 @@ No orders are being accepted.
           .setTimestamp();
       }
 
-      // React to trigger
+      // React to trigger (best effort)
       try { await message.react("✅"); } catch {}
 
       const me = await message.guild.members.fetchMe();
@@ -119,8 +132,7 @@ No orders are being accepted.
 
         const isTextLike =
           ch.type === ChannelType.GuildText ||
-          ch.type === ChannelType.GuildAnnouncement ||
-          ch.type === ChannelType.PublicThread;
+          ch.type === ChannelType.GuildAnnouncement;
         const isVoice = ch.type === ChannelType.GuildVoice;
 
         // Rename for both text and voice
@@ -129,7 +141,7 @@ No orders are being accepted.
           catch (e) { console.warn(`⚠️ setName failed for #${ch.id}:`, e?.message); }
         }
 
-        // Only post in main text channel
+        // Only post/cleanup in main text channel
         if (!STATUS_POST_CHANNEL_IDS.includes(id)) continue;
         if (!isTextLike) continue;
 
@@ -137,10 +149,9 @@ No orders are being accepted.
         const canSend =
           perms?.has(PermissionFlagsBits.ViewChannel) &&
           perms?.has(PermissionFlagsBits.SendMessages);
-
         if (!canSend) continue;
 
-        // Cleanup last 50
+        // Cleanup last 50 (bot/author)
         try {
           const msgs = await ch.messages.fetch({ limit: 50 });
           const deletable = msgs.filter(
