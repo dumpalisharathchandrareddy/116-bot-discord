@@ -198,6 +198,7 @@ cron.schedule(
 // ===== IMPORT OTHER EVENT HANDLERS =====
 require("./events/ticketQueue.js")(client);
 require("./events/completedTickets.js")(client);
+require("./job/orderCount.js")(client); // <- add this
 
 // ===== BOT LOGIN =====
 client.login(process.env.TOKEN);

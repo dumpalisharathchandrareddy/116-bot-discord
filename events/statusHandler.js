@@ -1,9 +1,18 @@
-const { EmbedBuilder, Events, PermissionFlagsBits } = require("discord.js");
+const { EmbedBuilder, Events, PermissionFlagsBits, ChannelType } = require("discord.js");
 
-const STATUS_CHANNEL_IDS = ["1400619386964017314", "1400623787816521949"]; // update ALL of these
+// Rename BOTH of these (in order):
+const STATUS_RENAME_CHANNEL_IDS = [
+  "1400619386964017314", // main channel (rename + post/cleanup)
+  "1400623787816521949", // mirror channel (rename only)
+];
+
+// Post/Cleanup ONLY in these (primary list):
+const STATUS_POST_CHANNEL_IDS = [
+  "1400619386964017314", // ✅ only this one gets embed + cleanup
+];
+
 const GUILD_ID = process.env.GUILD_ID;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
-const OWNER_ID = "1400611712104927232"; // unused here but kept
 
 module.exports = {
   name: Events.MessageCreate,
@@ -13,19 +22,22 @@ module.exports = {
       if (!message.guild) return;
       if (GUILD_ID && message.guild.id !== GUILD_ID) return;
 
-      // Mention check
+      // Must mention the bot
       const isMentioningBot =
         message.mentions.users.has(client.user.id) ||
         message.content.includes(`<@${client.user.id}>`) ||
         message.content.includes(`<@!${client.user.id}>`);
       if (!isMentioningBot) return;
 
+      // Must include one of the keywords
       const lower = message.content.toLowerCase();
-      const keyword = ["open", "busy", "closed"].find(w => lower.includes(w));
+      const keyword = ["open", "busy", "closed"].find((w) => lower.includes(w));
       if (!keyword) return;
 
-      // Staff check
-      const member = await message.guild.members.fetch(message.author.id).catch(() => null);
+      // Must be staff
+      const member = await message.guild.members
+        .fetch(message.author.id)
+        .catch(() => null);
       const isStaff = STAFF_ROLE_ID ? member?.roles.cache.has(STAFF_ROLE_ID) : false;
       if (!isStaff) return;
 
@@ -95,29 +107,37 @@ No orders are being accepted.
       }
 
       // React to the trigger (best effort)
-      try { await message.react("✅"); } catch {}
+      try {
+        await message.react("✅");
+      } catch {}
 
-      // Update ALL listed status channels
       const me = await message.guild.members.fetchMe();
 
-      for (const id of STATUS_CHANNEL_IDS) {
+      for (const id of STATUS_RENAME_CHANNEL_IDS) {
         const ch = await message.guild.channels.fetch(id).catch(() => null);
         if (!ch) continue;
+        if (ch.type !== ChannelType.GuildText) continue;
 
         const perms = ch.permissionsFor(me);
-        const canRename = ch.manageable; // needs Manage Channels
-        const canSend = perms?.has(PermissionFlagsBits.SendMessages) && perms?.has(PermissionFlagsBits.ViewChannel);
+        const canRename = ch.manageable; // Manage Channels
+        const canSend =
+          perms?.has(PermissionFlagsBits.SendMessages) &&
+          perms?.has(PermissionFlagsBits.ViewChannel);
 
-        if (!canSend) continue; // skip if we can't post there
-
-        // Try renaming (ignore failures)
+        // Always try to rename (if allowed)
         if (canRename && ch.name !== newName) {
-          try { await ch.setName(newName); } catch (e) {
+          try {
+            await ch.setName(newName);
+          } catch (e) {
             console.warn(`⚠️ setName failed for #${ch.id}:`, e?.message);
           }
         }
 
-        // Clean last 50 messages from bot/author
+        // Only post/cleanup in primary channels
+        if (!STATUS_POST_CHANNEL_IDS.includes(id)) continue;
+        if (!canSend) continue;
+
+        // Cleanup only in posting channels
         try {
           const msgs = await ch.messages.fetch({ limit: 50 });
           const deletable = msgs.filter(
@@ -130,7 +150,7 @@ No orders are being accepted.
           console.warn(`⚠️ Cleanup failed in #${ch.id}:`, e?.message);
         }
 
-        // Post new status
+        // Post the embed
         try {
           await ch.send({ content: "@everyone", embeds: [statusEmbed] });
         } catch (e) {
