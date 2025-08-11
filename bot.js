@@ -75,8 +75,23 @@ client.on(Events.MessageReactionAdd, (reaction, user) =>
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
-  if (command) await command.execute(interaction, client);
+  if (!command) return;
+
+  try {
+    await command.execute(interaction, client);
+  } catch (err) {
+    console.error(`Error executing /${interaction.commandName}:`, err);
+
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply("❌ Something went wrong while running this command.");
+      } else {
+        await interaction.reply({ content: "❌ Something went wrong while running this command.", ephemeral: true });
+      }
+    } catch {}
+  }
 });
+
 
 // ===== MESSAGE EVENT HANDLER =====
 client.on(Events.MessageCreate, async (message) => {
