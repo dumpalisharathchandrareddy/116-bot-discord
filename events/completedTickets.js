@@ -3,7 +3,7 @@ const db = require("../db.js");
 
 module.exports = (client) => {
   const COMPLETED_CATEGORY_ID = "1400611725702729848";
-  const GUILD_ID = "1400611712104927230";
+  const GUILD_ID = process.env.GUILD_ID;
 
   // Auto-delete every hour
   setInterval(async () => {
