@@ -1,9 +1,9 @@
 const { Events } = require("discord.js");
 const db = require("../db.js");
 
-const VOUCHES_CHANNEL_ID = "1400619519986241566";
+const VOUCHES_CHANNEL_ID = process.env.VOUCHES_CHANNEL_ID; // Channel where vouches are posted
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
-const OWNER_ID = "1400611712104927232";
+const OWNER_ROLE_ID = process.env.OWNER_ROLE_ID; // Role ID for the owner
 
 module.exports = {
   name: Events.MessageCreate,
@@ -16,7 +16,9 @@ module.exports = {
     const mentionsStaffMember = message.mentions.members.some((m) =>
       m.roles.cache.has(STAFF_ROLE_ID)
     );
-    const mentionsYou = message.mentions.users.has(OWNER_ID);
+    const mentionsYou = message.mentions.members.some((m) =>
+      m.roles.cache.has(OWNER_ROLE_ID)
+    );
     const mentionsBot = message.mentions.users.has(client.user.id);
 
     const shouldAward =

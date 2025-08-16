@@ -1,52 +1,59 @@
+// triggers.js
+// Env-first (Railway), fallback to your provided IDs
+const VOUCHES_CHANNEL_ID   = process.env.VOUCHES_CHANNEL_ID   || "1405983244096372839";
+const GIVEAWAYS_CHANNEL_ID = process.env.GIVEAWAYS_CHANNEL_ID || "1405983236886102217";
+const STAFF_ROLE_ID        = process.env.STAFF_ROLE_ID        || "1405978890970861579";
+
 module.exports = {
   staffOnlyTriggers: {
     enjoy:
-      "Glad you enjoyed! Please leave us a vouch in <#1400619519986241566> and tag <@&1400611714650607646>.",
+      `Glad you enjoyed! Please leave us a vouch in <#${VOUCHES_CHANNEL_ID}> and tag <@&${STAFF_ROLE_ID}>.`,
     delivered:
-      "Your order has been delivered! Please leave a vouch in <#1400619519986241566>.",
+      `Your order has been delivered! Please leave a vouch in <#${VOUCHES_CHANNEL_ID}>.`,
     escalate:
       "We’re getting a senior staff member to help with your ticket.",
     reminder:
-      "Reminder: A vouch in <#1400619519986241566> helps us a lot.",
+      `Reminder: A vouch in <#${VOUCHES_CHANNEL_ID}> helps us a lot.`,
     followup:
       "Following up! Let us know if you need anything.",
-    tip: "A vouch in <#1400619519986241566> supports us.",
+    tip:
+      `A vouch in <#${VOUCHES_CHANNEL_ID}> supports us.`,
     feedback:
-      "Your feedback is important! Vouch in <#1400619519986241566> if satisfied.",
+      `Your feedback is important! Vouch in <#${VOUCHES_CHANNEL_ID}> if satisfied.`,
     delay:
       "Sorry for the wait! We’re working on your order.",
     "good job":
-      "Thanks! Please vouch in <#1400619519986241566> if you’re happy.",
+      `Thanks! Please vouch in <#${VOUCHES_CHANNEL_ID}> if you’re happy.`,
   },
 
   dualRoleTriggers: {
     "thank you": {
       staff: "Always remember to mention in the vouch channel.",
-      user: "If you enjoyed the service, please vouch in <#1400619519986241566>.",
+      user:  `If you enjoyed the service, please vouch in <#${VOUCHES_CHANNEL_ID}>.`,
     },
     thanks: {
       staff: "Thanks for the support.",
-      user: "Please vouch in <#1400619519986241566> if satisfied.",
+      user:  `Please vouch in <#${VOUCHES_CHANNEL_ID}> if satisfied.`,
     },
     "good night": {
       staff: "Good night! Make sure tickets are updated.",
-      user: "Good night! Please vouch in <#1400619519986241566> if happy.",
+      user:  `Good night! Please vouch in <#${VOUCHES_CHANNEL_ID}> if happy.`,
     },
     bye: {
       staff: "Staff sign-off complete.",
-      user: "Thank you for using our service. Please vouch in <#1400619519986241566>.",
+      user:  `Thank you for using our service. Please vouch in <#${VOUCHES_CHANNEL_ID}>.`,
     },
   },
 
   userOnlyTriggers: {
     "good service":
-      "If you enjoyed our service, vouch in <#1400619519986241566> and tag <@&1400611714650607646>.",
+      `If you enjoyed our service, vouch in <#${VOUCHES_CHANNEL_ID}> and tag <@&${STAFF_ROLE_ID}>.`,
     "fast delivery":
       "If you’re satisfied, a vouch helps us grow.",
     amazing:
-      "Please vouch in <#1400619519986241566> if happy.",
+      `Please vouch in <#${VOUCHES_CHANNEL_ID}> if happy.`,
     appreciate:
-      "We appreciate your support! Vouch in <#1400619519986241566> if satisfied.",
+      `We appreciate your support! Vouch in <#${VOUCHES_CHANNEL_ID}> if satisfied.`,
     sent: "Thanks, we’ll confirm your payment shortly.",
     paid: "Payment received. Processing your order.",
     "done payment":
@@ -67,7 +74,7 @@ module.exports = {
     "order done":
       "Order complete.",
     delivered:
-      "Hope your order was great! Please vouch in <#1400619519986241566> if happy.",
+      `Hope your order was great! Please vouch in <#${VOUCHES_CHANNEL_ID}> if happy.`,
     help: "If you need help, ask here or tag staff.",
     issue:
       "Please explain the issue so we can assist.",
@@ -85,4 +92,7 @@ module.exports = {
     city: "Please mention your delivery city.",
     bye: "Thanks for choosing us.",
   },
+
+  // Export this in case you want to reference the giveaways channel elsewhere
+  GIVEAWAYS_CHANNEL_ID,
 };

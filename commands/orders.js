@@ -1,12 +1,17 @@
+// commands/orders.js
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const db = require("../db");
+
+// Optionally set in Railway: SERVER_ORDERS_BONUS=100
+const SERVER_ORDERS_BONUS = Number(process.env.SERVER_ORDERS_BONUS ?? 100);
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("orders")
     .setDescription("Show total orders for the server or a specific user.")
-    .addUserOption(opt =>
-      opt.setName("user")
+    .addUserOption((opt) =>
+      opt
+        .setName("user")
         .setDescription("User to check (optional)")
         .setRequired(false)
     ),
@@ -16,12 +21,12 @@ module.exports = {
       const target = interaction.options.getUser("user");
 
       if (target) {
-        // user-specific total
+        // User-specific total (no bonus)
         const { rows } = await db.query(
-          `SELECT total_orders FROM user_orders WHERE user_id = $1`,
+          "SELECT total_orders FROM user_orders WHERE user_id = $1",
           [target.id]
         );
-        const total = rows[0]?.total_orders ?? 0;
+        const total = Number(rows[0]?.total_orders ?? 0);
 
         const embed = new EmbedBuilder()
           .setTitle("📦 User Orders")
@@ -32,16 +37,18 @@ module.exports = {
         return interaction.reply({ embeds: [embed] });
       }
 
-      // server total = sum of all users
+      // Server total = sum of all users + bonus (display only)
       const { rows } = await db.query(
-        `SELECT COALESCE(SUM(total_orders), 0) AS total FROM user_orders`
+        "SELECT COALESCE(SUM(total_orders), 0) AS total FROM user_orders"
       );
-      const total = rows[0]?.total ?? 0;
+      const rawTotal = Number(rows[0]?.total ?? 0);
+      const displayTotal = rawTotal + SERVER_ORDERS_BONUS;
 
       const embed = new EmbedBuilder()
         .setTitle("🏷️ Server Orders")
-        .setDescription(`Total orders recorded: **${total}**`)
+        .setDescription(`Total orders recorded: **${displayTotal}**`)
         .setColor(0x57f287)
+        .setFooter({ text: `Includes +${SERVER_ORDERS_BONUS} base bonus` })
         .setTimestamp();
 
       return interaction.reply({ embeds: [embed] });

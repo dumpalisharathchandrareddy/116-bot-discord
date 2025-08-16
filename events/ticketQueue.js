@@ -1,9 +1,9 @@
 const { Events, EmbedBuilder, ChannelType } = require("discord.js");
 
 module.exports = (client) => {
-  const TICKET_CATEGORY_ID = "1400611724884971550"; // Open tickets category
-  const OWNER_ROLE_ID = "1400611712104927232";      // <-- treat this as ROLE id
-  const OWNER_USER_ID = process.env.OWNER_USER_ID || ""; // optional single owner user
+  const TICKET_CATEGORY_ID = process.env.OPEN_TICKET_CATEGORY_ID; // Open tickets category
+  const OWNER_ROLE_ID = process.env.OWNER_ROLE_ID;      // <-- treat this as ROLE id
+  const OWNER_USER_ID = process.env.OWNER_USER_ID ; // optional single owner user
   const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;  // required
 
   client.on(Events.ChannelCreate, async (channel) => {

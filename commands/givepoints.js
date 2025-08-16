@@ -5,8 +5,8 @@ const {
 } = require("discord.js");
 const pool = require("../db");
 
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1400611714650607646";
-const OWNER_ID = "1400611712104927232";
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
+const OWNER_ROLE_ID = process.env.OWNER_ROLE_ID;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -29,7 +29,7 @@ module.exports = {
     const member = interaction.member;
     const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator);
     const isStaff = member.roles.cache.has(STAFF_ROLE_ID);
-    const isOwner = interaction.user.id === OWNER_ID;
+    const isOwner = member.roles.cache.has(OWNER_ROLE_ID);
 
     if (!(isAdmin || isStaff || isOwner)) {
       return interaction.reply({

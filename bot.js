@@ -21,15 +21,15 @@ const {
 } = require("./triggerResponses.js");
 
 const medals = ["🏆", "🧆", "🥇"];
-const LEADERBOARD_CHANNEL_IDS = ["1400619519986241566"];
+const LEADERBOARD_CHANNEL_IDS =process.env.VOUCHES_CHANNEL_ID;
 
-const VOUCHES_CHANNEL_ID = "1400619519986241566";
-const STATUS_CHANNEL_ID = "1400619386964017314 && 1400623787816521949";
+const VOUCHES_CHANNEL_ID = process.env.VOUCHES_CHANNEL_ID; // Channel where vouches are posted
+const STATUS_CHANNEL_ID = "1405985956728668310 && 1405983227591790725";
 const GUILD_ID = process.env.GUILD_ID;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
-const TICKET_CATEGORY_ID = "1400611724884971550";
-const OWNER_ID = "1400611712104927232";
-const BLOCKED_CHANNEL_ID = "1400613438023270512"; // no-bot-commands channel
+const TICKET_CATEGORY_ID = process.env.OPEN_TICKET_CATEGORY_ID; // Open tickets category
+const OWNER_ROLE_ID = process.env.OWNER_ROLE_ID; // Role ID for the owner
+const BLOCKED_CHANNEL_ID = "1405980531216224347"; // no-bot-commands channel
 
 // ===== INITIALIZE DISCORD CLIENT =====
 const client = new Client({
@@ -213,7 +213,9 @@ cron.schedule(
 // ===== IMPORT OTHER EVENT HANDLERS =====
 require("./events/ticketQueue.js")(client);
 require("./events/completedTickets.js")(client);
-require("./jobs/orderCountUpdater.js")(client); // <- add this
+require("./jobs/orderCountUpdater.js")(client);
+require("./handlers/dmButton")(client);
+ // <- add this
 
 // ===== BOT LOGIN =====
 client.login(process.env.TOKEN);

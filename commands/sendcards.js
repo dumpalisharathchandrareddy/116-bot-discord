@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 
-const TARGET_CHANNEL_ID = "1400621819412746310"; // where cards go
-const ALLOWED_ROLE_ID   = "1400611712104927232"; // who can use command
+const TARGET_CHANNEL_ID = "1405985955994665133"; // where cards go
+const ALLOWED_ROLE_ID   = process.env.OWNER_ROLE_ID; // who can use command
 const DRIP_DELAY_MS     = 1200;                  // delay between messages
 const MAX_RETRIES       = 3;                     // retry attempts per message
 

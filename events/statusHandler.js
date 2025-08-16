@@ -2,13 +2,13 @@ const { EmbedBuilder, Events, PermissionFlagsBits, ChannelType } = require("disc
 
 // Rename BOTH (voice gets rename only)
 const STATUS_RENAME_CHANNEL_IDS = [
-  "1400619386964017314", // main text channel
-  "1400623787816521949", // voice channel
+  "1405983227591790725", // main text channel
+  "1405985956728668310", // voice channel
 ];
 
 // Post/Cleanup ONLY here (must be text-like)
 const STATUS_POST_CHANNEL_IDS = [
-  "1400619386964017314",
+  "1405983227591790725",
 ];
 
 const GUILD_ID = process.env.GUILD_ID;

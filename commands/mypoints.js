@@ -1,8 +1,8 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const pool = require("../db");
 
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1400611714650607646";
-const OWNER_ID = "1400611712104927232";
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
+const OWNER_ROLE_ID = process.env.OWNER_ROLE_ID;
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,7 +20,7 @@ module.exports = {
     try {
       const member = interaction.member;
       const isStaff = member.roles.cache.has(STAFF_ROLE_ID);
-      const isOwner = interaction.user.id === OWNER_ID;
+      const isOwner = member.roles.cache.has(OWNER_ROLE_ID);
 
       const targetUser = interaction.options.getUser("user") || interaction.user;
 

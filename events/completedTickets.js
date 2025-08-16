@@ -2,7 +2,7 @@ const { Events } = require("discord.js");
 const db = require("../db.js");
 
 module.exports = (client) => {
-  const COMPLETED_CATEGORY_ID = "1400611725702729848";
+  const COMPLETED_CATEGORY_ID = process.env.COMPLETED_CATEGORY_ID; // ID of the Completed Tickets category
   const GUILD_ID = process.env.GUILD_ID;
 
   // Auto-delete every hour

@@ -1,10 +1,10 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const pool = require("../db");
 
-const COMPLETED_CATEGORY_ID = "1400611725702729848";
-const LOG_CHANNEL_ID = "1400615782727290930";
-const CUSTOMER_ROLE_ID = "1400611715388932108";
-const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || "1400611714650607646";
+const COMPLETED_CATEGORY_ID = process.env.COMPLETED_CATEGORY_ID; // ID of the Completed Tickets category
+const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID; // ID of the log channel for completed tickets
+const CUSTOMER_ROLE_ID = process.env.CUSTOMER_ROLE_ID; // ID of the Customer role to assign
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 const OWNER_ID = "666746569193816086";
 
 module.exports = {
