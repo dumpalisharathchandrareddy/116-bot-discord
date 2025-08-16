@@ -8,16 +8,16 @@ module.exports = {
   async startGiveaway(interaction) {
     try {
       const embed = new EmbedBuilder()
-        .setTitle("🎁 Daily Giveaway - NO SERVICE FEE Order!")
+        .setTitle("🎁 Daily Giveaway - NO SERVICE FEE GAME (0rder)!")
         .setDescription(
           `✅ React with 🎁 to enter!
 ` +
-          `✅ Cost: **1 point**
+          `Cost: **1 point**
 ` +
-          `🎯 Giveaway remains open until cleared or winner picked.
+          `🎯 Giveaway winner will get a DM when announced.
 
 ` +
-          `**Prize:** Your next order will be **NO SERVICE FEE** (you still pay Uber fees + food)`
+          `**Prize:** Your next order will be **NO SERVICE FEE** (you still needs GAME (0rder) fees)`
         )
         .setColor(0xffc107)
         .setFooter({ text: "Daily Giveaway - Starts now" })

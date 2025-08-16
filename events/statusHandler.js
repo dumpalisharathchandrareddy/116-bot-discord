@@ -65,19 +65,19 @@ module.exports = {
           .setDescription(
             `✅ **We are currently taking orders!**
 
-**UE Promo Update**
-UE has changed the offer to:
+**GAME (0rder) Promo Update**
+GAME offers:
 **$20 OFF on $20 subtotal**
 
 > Add **exactly $20** to your cart to make full use of the promo.
 > Less than $20 = no discount.
 
-**Any store**
+**Any Place (store)**
 
-📦 Make multiple carts for large orders
+📦 Make multiple LINKS for large GAMES (0rders)
 📣 Expect a queue — respond to pings ASAP
 
-🛒 Place your group order now!`
+🛒 Place your group GAME (0rder) now!`
           )
           .setImage("https://media.giphy.com/media/BuixK83naJThKrTDXF/giphy.gif")
           .setColor(0x00ff66)
@@ -89,7 +89,7 @@ UE has changed the offer to:
         statusEmbed = new EmbedBuilder()
           .setTitle("🟠 STATUS: BUSY")
           .setDescription(
-            `**⚠️ CURRENTLY PROCESSING ORDERS**
+            `**⚠️ CURRENTLY PROCESSING GAMES-:0RDERS**
 _May be a slight delay_
 
 **💬 PLEASE BE PATIENT**  
@@ -108,7 +108,7 @@ Avoid spam, we will respond ASAP
           .setTitle("🔴 STATUS: CLOSED")
           .setDescription(
             `**❌ CURRENTLY CLOSED**
-No orders are being accepted.
+No GAMES (0rders) are being accepted.
 
 **🕐 CHECK BACK LATER**  
 🔔 Stay notified for updates!
