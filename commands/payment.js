@@ -3,7 +3,7 @@ const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 // Optional: let amounts/handles live in env so you can update without code changes
 const CASHAPP_TAG = process.env.CASHAPP_TAG || "$jabed22";
-const ZELLE_HANDLE = process.env.ZELLE_HANDLE || "9592401891";
+const ZELLE_HANDLE = process.env.ZELLE_HANDLE || "csharath301@protonmail.com";
 const PAYPAL_HANDLE = process.env.PAYPAL_HANDLE || "9592401891";
 const APPLE_PAY_HANDLE = process.env.APPLE_PAY_HANDLE || "csharath301@icloud.com";
 const CRYPTO_TEXT = process.env.CRYPTO_TEXT || "DM me for the Crypto address!";
@@ -45,7 +45,7 @@ module.exports = {
   async execute(interaction) {
     // Ensure it’s used in a guild (slash commands usually are, but just in case)
     if (!interaction.inGuild?.() && !interaction.guild) {
-      return interaction.reply({ content: "This command can only be used in a server.", ephemeral: true });
+      return interaction.reply({ content: "This command can only be used in a server.", ephemeral: false });
     }
 
     // ✅ Permission: only server owner or members with OWNER_ROLE_ID
@@ -110,6 +110,6 @@ module.exports = {
       .setFooter({ text: "Payments - Secure and Fast" });
 
     // Make it private to the invoker
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], ephemeral: false });
   },
 };

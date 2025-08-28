@@ -79,8 +79,8 @@ module.exports = {
 
       // ✅ Confirmation Message
       await interaction.channel.send(
-        `✅ This ticket has been marked as completed by <@${interaction.user.id}>!\n` +
-        `⏳ This ticket will automatically close and deleted in **2 hours**.`
+        `✅ This ticket has been marked as completed by <@${interaction.user.id}, will automatically deleted in ⏳ **2 hours>!\n`
+       
       );
 
       // ── Ping ticket opener + short vouch prompt ──
@@ -106,7 +106,7 @@ if (!ticketOwnerId) {
 if (ticketOwnerId) {
   await interaction.channel.send(
     `📦 <@${ticketOwnerId}>, your order is **complete** — thanks!\n` +
-    `💬 Like the service? Drop a quick vouch in <#1400619519986241566>, tag <@&1400611714650607646>, and enter <#1380321176676466723>!`
+    `💬 Like the service? Drop a quick vouch in <#1405983244096372839>, tag <@&1405978890970861579>, and enter <#1405983236886102217>!`
   );
 }
 
