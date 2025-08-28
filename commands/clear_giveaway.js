@@ -8,13 +8,23 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction) {
-    // reset giveaway data
-    await giveawayHandler.clearGiveaway(interaction);
+    try {
+      await interaction.deferReply({ ephemeral: true });   // <- reserve the reply
 
-    // send an ephemeral confirmation to the staff member who triggered the command
-    await interaction.reply({
-      content: `🔁 Giveaway has been reset.\nYou can now use \`/start_giveaway\` to begin a new one.`,
-      ephemeral: true,          // <-- only visible to the executor
-    });
+      // Ensure this function does NOT reply; remove interaction usage inside it
+      await giveawayHandler.clearGiveaway();                // <- no interaction arg
+
+      await interaction.editReply(
+        "🔁 Giveaway has been reset.\nYou can now use `/start_giveaway` to begin a new one."
+      );
+    } catch (err) {
+      // Safe error path even if reply already sent
+      if (interaction.deferred && !interaction.replied) {
+        await interaction.editReply("❌ Failed to clear the giveaway. Check logs.");
+      } else {
+        await interaction.followUp({ content: "❌ Failed to clear the giveaway. Check logs.", ephemeral: true }).catch(() => {});
+      }
+      console.error("Error executing /clear_giveaway:", err);
+    }
   },
 };

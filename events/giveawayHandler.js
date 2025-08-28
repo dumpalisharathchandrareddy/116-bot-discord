@@ -1,83 +1,97 @@
+// events/giveawayHandler.js
 const { EmbedBuilder } = require("discord.js");
 const pool = require("../db");
 
-const ENTRY_EMOJI = "🎁";
-const MAX_ENTRIES_AUTO_PICK = 30;
+// CONFIG
+const ENTRY_EMOJI = "🎁"; // React with this to enter
 
 module.exports = {
+  /**
+   * Starts a giveaway in the current channel.
+   * NOTE: This function does NOT reply to the interaction. Let the slash command do defer/editReply.
+   * Returns { messageId, channelId } on success for the caller to use.
+   */
   async startGiveaway(interaction) {
-    try {
-      const embed = new EmbedBuilder()
-        .setTitle("🎁 Daily Giveaway - NO SERVICE FEE GAME (0rder)!")
-        .setDescription(
-          `✅ React with 🎁 to enter!
-` +
-          `Cost: **1 point**
-` +
-          `🎯 Giveaway winner will get a DM when announced.
+    // Create the entry embed
+    const embed = new EmbedBuilder()
+      .setTitle("🎁 Daily Giveaway - NO SERVICE FEE GAME (Order)!")
+      .setDescription(
+        [
+          "✅ React with 🎁 to enter!",
+          "Cost: **1 point**",
+          "🎯 Giveaway winner will get a DM when announced.",
+          "",
+          "**Prize:** Your next order will be **NO SERVICE FEE** (you still need to pay GAME (Order) fees)"
+        ].join("\n")
+      )
+      .setColor(0xffc107)
+      .setFooter({ text: "Daily Giveaway - Starts now" })
+      .setTimestamp();
 
-` +
-          `**Prize:** Your next order will be **NO SERVICE FEE** (you still needs GAME (0rder) fees)`
-        )
-        .setColor(0xffc107)
-        .setFooter({ text: "Daily Giveaway - Starts now" })
-        .setTimestamp();
+    // Send the embed & add the reaction
+    const giveawayMessage = await interaction.channel.send({ embeds: [embed] });
+    await giveawayMessage.react(ENTRY_EMOJI);
 
-      const giveawayMessage = await interaction.channel.send({ embeds: [embed] });
-      await giveawayMessage.react(ENTRY_EMOJI);
+    // Mark state as active for this message
+    await pool.query(
+      `INSERT INTO giveaway_state (message_id, channel_id, is_active, prize)
+       VALUES ($1, $2, true, $3)`,
+      [giveawayMessage.id, interaction.channel.id, "NO SERVICE FEE Order"]
+    );
 
-      await pool.query(
-        `INSERT INTO giveaway_state (message_id, channel_id, is_active, prize) VALUES ($1, $2, $3, $4)`,
-        [giveawayMessage.id, interaction.channel.id, true, "NO SERVICE FEE Order"]
-      );
-
-      await interaction.reply({ content: "✅ Giveaway started!", ephemeral: true });
-    } catch (error) {
-      console.error("startGiveaway error:", error);
-    }
+    return { messageId: giveawayMessage.id, channelId: interaction.channel.id };
   },
 
-  async pickWinner(interaction) {
-    try {
-      const result = await pool.query(`SELECT user_id FROM giveaway_entries`);
-      const entries = result.rows.map(row => row.user_id);
+  /**
+   * Picks a random winner from current entries.
+   * NOTE: Does NOT reply to the interaction. Returns { picked: boolean, winnerId?: string }.
+   * Also marks the active giveaway as inactive when a winner is picked.
+   */
+  async pickWinner() {
+    // Get entries
+    const { rows } = await pool.query(`SELECT user_id FROM giveaway_entries`);
+    if (rows.length === 0) return { picked: false };
 
-      if (entries.length === 0) {
-        return interaction.reply({
-          content: `❌ No entries to pick from yet.`,
-          ephemeral: true
-        });
-      }
+    const winnerId = rows[Math.floor(Math.random() * rows.length)].user_id;
 
-      const winnerId = entries[Math.floor(Math.random() * entries.length)];
-      await interaction.reply(
-        `🎉 **Congratulations <@${winnerId}>!** You won today's giveaway! 🎁\n` +
-        `👉 Your next order will be **NO SERVICE FEE** (Uber fees & food still paid)`
-      );
-    } catch (error) {
-      console.error("pickWinner error:", error);
-      await interaction.reply({
-        content: "❌ Failed to pick a winner due to a database error.",
-        ephemeral: true,
-      });
-    }
+    // Mark giveaway inactive (optional but recommended)
+    await pool.query(
+      `UPDATE giveaway_state SET is_active = false WHERE is_active = true`
+    );
+
+    return { picked: true, winnerId };
   },
 
-  async clearGiveaway(interaction) {
-    try {
-      await pool.query(`DELETE FROM giveaway_entries`);
-      await pool.query(`DELETE FROM giveaway_state`);
-      await interaction.reply({ content: "✅ Giveaway cleared!", ephemeral: true });
-    } catch (error) {
-      console.error("clearGiveaway error:", error);
-    }
+  /**
+   * Clears all giveaway data (entries + state).
+   * NOTE: Does NOT reply to the interaction. Returns { cleared: true }.
+   */
+  async clearGiveaway() {
+    await pool.query(`DELETE FROM giveaway_entries`);
+    await pool.query(`DELETE FROM giveaway_state`);
+    return { cleared: true };
   },
 
+  /**
+   * Handles a reaction add for entry.
+   * Deducts 1 point atomically (as much as possible without DB constraints) and records the entry.
+   */
   async handleReaction(reaction, user, client) {
     if (user.bot) return;
 
     try {
-      const stateResult = await pool.query(`SELECT * FROM giveaway_state ORDER BY id DESC LIMIT 1`);
+      // Ensure full objects if partials are enabled
+      if (reaction.partial) {
+        try { await reaction.fetch(); } catch { return; }
+      }
+      if (reaction.message?.partial) {
+        try { await reaction.message.fetch(); } catch { return; }
+      }
+
+      // Only process unicode 🎁 on the active giveaway
+      const stateResult = await pool.query(
+        `SELECT * FROM giveaway_state WHERE is_active = true ORDER BY id DESC LIMIT 1`
+      );
       const state = stateResult.rows[0];
       if (!state) return;
 
@@ -85,54 +99,87 @@ module.exports = {
         reaction.message.id !== state.message_id ||
         reaction.message.channel.id !== state.channel_id ||
         reaction.emoji.name !== ENTRY_EMOJI
-      ) return;
+      ) {
+        return;
+      }
 
+      // Must be a guild member
       const guild = reaction.message.guild;
       const member = await guild.members.fetch(user.id).catch(() => null);
       if (!member) return;
 
-      const pointsResult = await pool.query(`SELECT points FROM points WHERE user_id = $1`, [user.id]);
+      // Current points
+      const pointsResult = await pool.query(
+        `SELECT points FROM points WHERE user_id = $1`,
+        [user.id]
+      );
       const userPoints = pointsResult.rows[0]?.points || 0;
 
       if (userPoints < 1) {
+        // Not enough points: remove reaction & DM
         await reaction.users.remove(user.id).catch(() => {});
         try {
           await user.send(
-            `❌ You can't enter today's giveaway:\n` +
-            `• You have **${userPoints} point(s)** (need at least 1)\n\n` +
-            `👉 You must place an order **and vouch** to earn points.`
+            [
+              `❌ You can't enter today's giveaway:`,
+              `• You have **${userPoints} point(s)** (need at least 1)`,
+              ``,
+              `👉 Earn points by placing an order **and vouching**.`
+            ].join("\n")
           );
         } catch {}
         return;
       }
 
-      const alreadyEntered = await pool.query(`SELECT 1 FROM giveaway_entries WHERE user_id = $1`, [user.id]);
+      // Prevent duplicates (best-effort without a unique constraint)
+      const alreadyEntered = await pool.query(
+        `SELECT 1 FROM giveaway_entries WHERE user_id = $1 LIMIT 1`,
+        [user.id]
+      );
       if (alreadyEntered.rowCount > 0) {
         try {
-          await user.send(`⚠️ You already joined the giveaway! If you unreact, your point will NOT be refunded.`);
+          await user.send(
+            `⚠️ You already joined the giveaway! If you unreact, your point will NOT be refunded.`
+          );
         } catch {}
         return;
       }
 
-      await pool.query(`UPDATE points SET points = points - 1 WHERE user_id = $1`, [user.id]);
-      await pool.query(`INSERT INTO giveaway_entries (user_id, entries) VALUES ($1, 1)`, [user.id]);
+      // Attempt an atomic-ish deduction + insert (race-safe in most cases)
+      // This avoids negative points if two fast reactions happen.
+      const res = await pool.query(
+        `
+        WITH deducted AS (
+          UPDATE points
+            SET points = points - 1
+            WHERE user_id = $1 AND points >= 1
+            RETURNING user_id
+        )
+        INSERT INTO giveaway_entries (user_id, entries)
+        SELECT user_id, 1 FROM deducted
+        WHERE NOT EXISTS (SELECT 1 FROM giveaway_entries ge WHERE ge.user_id = $1)
+        RETURNING user_id
+        `,
+        [user.id]
+      );
 
-      const entryCountResult = await pool.query(`SELECT COUNT(*) FROM giveaway_entries`);
-      const currentEntries = parseInt(entryCountResult.rows[0].count);
-
-      if (currentEntries >= MAX_ENTRIES_AUTO_PICK) {
-        const winnerId = await pool.query(`SELECT user_id FROM giveaway_entries ORDER BY RANDOM() LIMIT 1`);
-        await reaction.message.channel.send(
-          `🎉 **Auto-pick triggered!**\n` +
-          `🎊 <@${winnerId.rows[0].user_id}> won today's giveaway for **NO SERVICE FEE**!`
-        );
+      if (res.rowCount === 0) {
+        // Either not enough points anymore OR duplicate slipped in under race
+        await reaction.users.remove(user.id).catch(() => {});
+        try {
+          await user.send(
+            `❌ Entry failed — you may have **insufficient points** or already **joined**.`
+          );
+        } catch {}
+        return;
       }
 
+      // Success DM
       try {
         await user.send(`✅ You successfully entered the giveaway! 1 point was deducted.`);
       } catch {}
     } catch (error) {
       console.error("handleReaction error:", error);
     }
-  }
+  },
 };

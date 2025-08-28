@@ -79,7 +79,8 @@ module.exports = {
 
       // ✅ Confirmation Message
       await interaction.channel.send(
-        `✅ This ticket has been marked as completed by <@${interaction.user.id}, will automatically deleted in ⏳ **2 hours>!\n`
+        `✅ This ticket has been marked as completed by <@${interaction.user.id}>, will automatically be deleted in ⏳ **2 hours**!\n`
+
        
       );
 
