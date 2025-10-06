@@ -165,19 +165,20 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("payment")
     .setDescription("Show payment options (with live logo buttons)")
-    .addStringOption((o) =>
-      o
-        .setName("method")
-        .setDescription("Optional: select Apple Pay to show it inline")
-        .setRequired(false)
-        .addChoices({ name: "Apple Pay", value: "applepay" })
-    )
+
     .addNumberOption((o) =>
       o
         .setName("amount")
         .setDescription("Amount to pay ($)")
         .setRequired(true)
-    ),
+    )
+    .addStringOption((o) =>
+    o
+      .setName("method")
+      .setDescription("Optional: select Apple Pay to show it inline")
+      .setRequired(false)
+      .addChoices({ name: "Apple Pay", value: "applepay" })
+  ),
 
   async execute(interaction) {
     const method = interaction.options.getString("method") || null;
