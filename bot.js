@@ -211,6 +211,10 @@ cron.schedule(
 );
 
 // ===== IMPORT OTHER EVENT HANDLERS =====
+// ===== BRIDGE LISTENER (register standalone event) =====
+const bridgeCompleted = require("./events/bridgeCompleted.js");
+client.on(Events.MessageCreate, (message) => bridgeCompleted.execute(message));
+
 require("./events/ticketQueue.js")(client);
 require("./events/completedTickets.js")(client);
 require("./jobs/orderCountUpdater.js")(client);

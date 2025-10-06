@@ -52,5 +52,6 @@ module.exports = {
       console.error("[bridgeCompleted] error:", e);
       await message.react("⚠️").catch(() => {});
     }
+    await message.delete().catch(() => {});
   },
 };
