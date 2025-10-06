@@ -46,6 +46,9 @@ module.exports = {
       const cmd = message.client.commands.get("completed");
       if (cmd?.runDirect) {
         await cmd.runDirect(message.client, { userId, orderId, total, channelId });
+        // debug
+      console.log("[bridge] seen msg from", message.author.id, "content:", message.content?.slice(0, 30));
+
       }
       await message.react("✅").catch(() => {});
     } catch (e) {

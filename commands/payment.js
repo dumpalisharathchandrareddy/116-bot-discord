@@ -8,7 +8,7 @@ const {
   ComponentType,
 } = require("discord.js");
 
-/* ENV CONFIG */
+/* ───────────────── ENV CONFIG ───────────────── */
 const CASHAPP_TAG    = process.env.CASHAPP_TAG    || "$jabed22";
 const CASHAPP_LINK   = process.env.CASHAPP_LINK   || "https://cash.app/$jabed22";
 const ZELLE_HANDLE   = process.env.ZELLE_HANDLE   || "csharath301@protonmail.com";
@@ -17,7 +17,14 @@ const PAYPAL_LINK    = process.env.PAYPAL_LINK    || "https://www.paypal.me/SDum
 const APPLE_PAY_INFO = process.env.APPLE_PAY_INFO || "csharath301@icloud.com";
 const CRYPTO_TEXT    = process.env.CRYPTO_TEXT    || "DM me for the crypto address!";
 
-/* STATIC LOGO ICONS (uniform sizing) */
+/* ─────────────── CUSTOM EMOJI IDS (your uploaded ones) ─────────────── */
+const EMOJI_PP_ID   = "472669441024581633";  // <:47266paypal:472669441024581633>
+const EMOJI_ZEL_ID  = "707924857915817000";  // <:7079zelle:707924857915817000>
+const EMOJI_CASH_ID = "515792469616607244";  // <:5157cashapp:515792469616607244>
+const EMOJI_APP_ID  = "255151364146716672";  // <:25515applepay:255151364146716672>
+const EMOJI_CRY_ID  = "198457986375925760";  // <:19845solana:198457986375925760>
+
+/* ─────────────── ICONS (for embeds only) ─────────────── */
 const ICONS = {
   paypal:   "https://cdn3.emoji.gg/emojis/1716_PAYPAL.png",
   zelle:    "https://cdn3.emoji.gg/emojis/7079-zelle.png",
@@ -26,7 +33,7 @@ const ICONS = {
   crypto:   "https://cdn3.emoji.gg/emojis/4887-ltc.png",
 };
 
-/* URL BUILDERS */
+/* ─────────────── URL BUILDERS ─────────────── */
 function appendAmount(url, amount) {
   try {
     const u = new URL(url);
@@ -48,7 +55,7 @@ function buildPayPalLink(handle, amount) {
   return "https://www.paypal.me/";
 }
 
-/* MAIN EMBED (public) */
+/* ─────────────── MAIN EMBED (public) ─────────────── */
 function buildPaymentEmbed({ amount, highlight }) {
   const amt = `**$${amount.toFixed(2)}**`;
   const hl = (n) => (n === highlight ? "__**" + n + "**__" : "**" + n + "**");
@@ -56,72 +63,77 @@ function buildPaymentEmbed({ amount, highlight }) {
   const lines = [
     `💰 ${amt} please 😄`,
     "",
-    `🅿️ ${hl("PayPal")}: ${PAYPAL_HANDLE} *(FNF only)*`,
-    `🟣 ${hl("Zelle")}: ${ZELLE_HANDLE}`,
-    `🟢 ${hl("Cash App")}: ${CASHAPP_TAG}`,
-    ...(highlight === "applepay" ? [`🍎 ${hl("Apple Pay")}: ${APPLE_PAY_INFO}`] : []),
-    `₿ ${hl("Crypto")}: ${CRYPTO_TEXT}`,
+    `<:47266paypal:${EMOJI_PP_ID}> ${hl("PayPal")}: ${PAYPAL_HANDLE} *(FNF only)*`,
+    `<:7079zelle:${EMOJI_ZEL_ID}> ${hl("Zelle")}: ${ZELLE_HANDLE}`,
+    `<:5157cashapp:${EMOJI_CASH_ID}> ${hl("Cash App")}: ${CASHAPP_TAG}`,
+    ...(highlight === "applepay"
+      ? [`<:25515applepay:${EMOJI_APP_ID}> ${hl("Apple Pay")}: ${APPLE_PAY_INFO}`]
+      : []),
+    `<:19845solana:${EMOJI_CRY_ID}> ${hl("Crypto")}: ${CRYPTO_TEXT}`,
   ].join("\n");
 
   return new EmbedBuilder()
     .setColor(0x22c55e)
     .setTitle("💳 Payment Options")
     .setDescription(lines)
-    .setFooter({ text: "Payments - Secure and Fast" });
+    .setFooter({ text: "Payments • Secure and Fast" });
 }
 
-/* BUTTON ROW (logo + color) */
+/* ─────────────── BUTTON ROW ─────────────── */
 function makeButtons(amount) {
+  const paypalBtn = new ButtonBuilder()
+    .setStyle(ButtonStyle.Link)
+    .setLabel("PayPal")
+    .setEmoji(EMOJI_PP_ID)
+    .setURL(buildPayPalLink(PAYPAL_HANDLE, amount));
+
+  const cashBtn = new ButtonBuilder()
+    .setStyle(ButtonStyle.Link)
+    .setLabel("Cash App")
+    .setEmoji(EMOJI_CASH_ID)
+    .setURL(buildCashAppLink(CASHAPP_TAG, amount));
+
+  const zelleBtn = new ButtonBuilder()
+    .setStyle(ButtonStyle.Primary)
+    .setLabel("Zelle")
+    .setEmoji(EMOJI_ZEL_ID)
+    .setCustomId(`pay:zelle:${amount}`);
+
+  const appleBtn = new ButtonBuilder()
+    .setStyle(ButtonStyle.Secondary)
+    .setLabel("Apple Pay")
+    .setEmoji(EMOJI_APP_ID)
+    .setCustomId(`pay:applepay:${amount}`);
+
+  const cryptoBtn = new ButtonBuilder()
+    .setStyle(ButtonStyle.Secondary)
+    .setLabel("Crypto")
+    .setEmoji(EMOJI_CRY_ID)
+    .setCustomId(`pay:crypto:${amount}`);
+
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setStyle(ButtonStyle.Primary)
-      .setLabel("PayPal")
-      .setEmoji({ name: "paypal", id: null, url: ICONS.paypal }) // shows image logo
-      .setCustomId(`pay:paypal:${amount}`),
-
-    new ButtonBuilder()
-      .setStyle(ButtonStyle.Secondary)
-      .setLabel("Zelle")
-      .setEmoji({ name: "zelle", id: null, url: ICONS.zelle })
-      .setCustomId(`pay:zelle:${amount}`),
-
-    new ButtonBuilder()
-      .setStyle(ButtonStyle.Success)
-      .setLabel("Cash App")
-      .setEmoji({ name: "cashapp", id: null, url: ICONS.cashapp })
-      .setCustomId(`pay:cashapp:${amount}`),
-
-    new ButtonBuilder()
-      .setStyle(ButtonStyle.Secondary)
-      .setLabel("Apple Pay")
-      .setEmoji({ name: "applepay", id: null, url: ICONS.applepay })
-      .setCustomId(`pay:applepay:${amount}`),
-
-    new ButtonBuilder()
-      .setStyle(ButtonStyle.Danger)
-      .setLabel("Crypto")
-      .setEmoji({ name: "crypto", id: null, url: ICONS.crypto })
-      .setCustomId(`pay:crypto:${amount}`)
+    paypalBtn, cashBtn, zelleBtn, appleBtn, cryptoBtn
   );
 }
 
-/* PRIVATE FOLLOWUP (after button click) */
+/* ─────────────── PRIVATE FOLLOW-UP (after click) ─────────────── */
 function buildFollowup(method, amount) {
   const amt = `**$${Number(amount).toFixed(2)}**`;
   const colorMap = {
-    paypal: 0x0079c1,
-    zelle:  0x6a1b9a,
-    cashapp:0x00c244,
-    applepay:0x000000,
-    crypto: 0xf7931a,
+    paypal:  0x0079c1,
+    zelle:   0x6a1b9a,
+    cashapp: 0x00c244,
+    applepay:0x0f0f0f,
+    crypto:  0xf7931a,
   };
   const titleMap = {
-    paypal: "Pay with PayPal",
-    zelle: "Zelle Payment",
+    paypal:  "Pay with PayPal",
+    zelle:   "Zelle Payment",
     cashapp: "Pay with Cash App",
-    applepay: "Apple Pay",
-    crypto: "Crypto Payment",
+    applepay:"Apple Pay",
+    crypto:  "Crypto Payment",
   };
+
   const icon = ICONS[method];
   const embed = new EmbedBuilder()
     .setColor(colorMap[method] || 0x22c55e)
@@ -131,7 +143,7 @@ function buildFollowup(method, amount) {
       `Amount: ${amt}`,
       "",
       method === "paypal"
-        ? `**PayPal:** ${PAYPAL_HANDLE}\n[FNF Only](${buildPayPalLink(PAYPAL_HANDLE, Number(amount))})`
+        ? `**PayPal:** ${PAYPAL_HANDLE}\n[Open PayPal (FNF)](${buildPayPalLink(PAYPAL_HANDLE, Number(amount))})`
         : method === "zelle"
         ? `**Zelle:**\n# ${ZELLE_HANDLE}\n\n_Pay through your banking app_`
         : method === "cashapp"
@@ -161,31 +173,31 @@ function buildFollowup(method, amount) {
   return { embeds: [embed], components: row ? [row] : [] };
 }
 
+/* ─────────────── SLASH COMMAND ─────────────── */
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("payment")
-    .setDescription("Show payment options (with live logo buttons)")
-
+    .setDescription("Show payment options (with logo buttons)")
     .addNumberOption((o) =>
-      o
-        .setName("amount")
-        .setDescription("Amount to pay ($)")
-        .setRequired(true)
+      o.setName("amount").setDescription("Amount to pay ($)").setRequired(true)
     )
     .addStringOption((o) =>
-    o
-      .setName("method")
-      .setDescription("Optional: select Apple Pay to show it inline")
-      .setRequired(false)
-      .addChoices({ name: "Apple Pay", value: "applepay" })
-  ),
+      o
+        .setName("method")
+        .setDescription("Optional: select Apple Pay to show it inline")
+        .setRequired(false)
+        .addChoices({ name: "Apple Pay", value: "applepay" })
+    ),
 
   async execute(interaction) {
     const method = interaction.options.getString("method") || null;
     const amount = interaction.options.getNumber("amount");
-    if (Number.isNaN(amount) || amount <= 0)
-      return interaction.reply({ content: "❌ Invalid amount.", ephemeral: true });
 
+    if (Number.isNaN(amount) || amount <= 0) {
+      return interaction.reply({ content: "❌ Invalid amount.", ephemeral: true });
+    }
+
+    // Public embed with buttons
     const embed = buildPaymentEmbed({ amount, highlight: method });
     const buttons = makeButtons(amount);
     const sent = await interaction.reply({
@@ -195,6 +207,7 @@ module.exports = {
       fetchReply: true,
     });
 
+    // Button click → private follow-up
     const filter = (i) => i.customId?.startsWith("pay:") && i.message.id === sent.id;
     const collector = sent.createMessageComponentCollector({
       filter,
