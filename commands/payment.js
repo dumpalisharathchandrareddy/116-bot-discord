@@ -18,76 +18,54 @@ const PAYPAL_LINK    = process.env.PAYPAL_LINK    || "https://www.paypal.me/SDum
 const APPLE_PAY_INFO = process.env.APPLE_PAY_INFO || "csharath301@icloud.com";
 const CRYPTO_TEXT    = process.env.CRYPTO_TEXT    || "DM me for the crypto address!";
 
-/* If your emoji are in a specific guild, put it here (falls back to GUILD_ID, then current guild) */
+/* If your emoji are in a specific guild */
 const EMOJI_GUILD_ID = process.env.EMOJI_GUILD_ID || process.env.GUILD_ID || null;
 
-/* Your emoji NAMES (exactly as in the server) */
+/* Your emoji NAMES (exactly as uploaded to your server) */
 const EMOJI_NAMES = {
   paypal:   "47266paypal",
   zelle:    "7079zelle",
   cashapp:  "5157cashapp",
   applepay: "25515applepay",
-  solana:   "19845solana", // using Solana for Crypto
+  solana:   "19845solana",
 };
 
-/* -------- Helpers -------- */
-function appendAmount(url, amount) {
-  try {
-    const u = new URL(url);
-    if (!u.searchParams.has("amount")) u.searchParams.set("amount", amount.toFixed(2));
-    return u.toString();
-  } catch {
-    return url;
-  }
-}
+/* ---------- Helpers ---------- */
+
+// ✅ New Cash App link style: cash.app/$tag/<amount>
 function buildCashAppLink(tag, amount) {
-  if (CASHAPP_LINK) return appendAmount(CASHAPP_LINK, amount);
-  return `https://cash.app/${encodeURIComponent(tag.replace(/^\$/, "$"))}`;
-}
-function buildPayPalLink(handle, amount) {
-  if (PAYPAL_LINK) return appendAmount(PAYPAL_LINK, amount);
-  if (/^[a-z0-9_.-]+$/i.test(handle)) {
-    return `https://www.paypal.me/${encodeURIComponent(handle)}/${amount.toFixed(2)}`;
-  }
-  return "https://www.paypal.me/";
+  let base = CASHAPP_LINK || `https://cash.app/${encodeURIComponent(tag)}`;
+  base = base.replace(/\?.*$/, "").replace(/\/+$/, "");
+  const amtPart = `/${Number(amount).toFixed(0)}`;
+  return `${base}${amtPart}`;
 }
 
-/** Resolve one emoji ID by name from: current guild → EMOJI_GUILD_ID → GUILD_ID fallback */
+// ✅ New PayPal link style: paypal.me/<handle>/<amount>
+function buildPayPalLink(handle, amount) {
+  let base = PAYPAL_LINK || `https://www.paypal.me/${encodeURIComponent(handle)}`;
+  base = base.replace(/\?.*$/, "").replace(/\/+$/, "");
+  const amtPart = `/${Number(amount).toFixed(2)}`;
+  return `${base}${amtPart}`;
+}
+
+/** Resolve emoji IDs by name */
 async function resolveEmojiId(interaction, name) {
   const client = interaction.client;
-  const triedGuildIds = new Set();
-
+  const tried = new Set();
   async function tryGuild(guildId) {
-    if (!guildId || triedGuildIds.has(guildId)) return null;
-    triedGuildIds.add(guildId);
+    if (!guildId || tried.has(guildId)) return null;
+    tried.add(guildId);
     const g = await client.guilds.fetch(guildId).catch(() => null);
     if (!g) return null;
     await g.emojis.fetch().catch(() => {});
-    const e = g.emojis.cache.find((x) => x.name === name);
-    return e?.id || null;
+    return g.emojis.cache.find((e) => e.name === name)?.id || null;
   }
-
-  // 1) current guild (if any)
-  const curId = interaction.guild?.id || null;
-  if (curId) {
-    const id = await tryGuild(curId);
-    if (id) return id;
-  }
-  // 2) explicit emoji guild
-  if (EMOJI_GUILD_ID) {
-    const id = await tryGuild(EMOJI_GUILD_ID);
-    if (id) return id;
-  }
-  // 3) fallback to configured GUILD_ID (if different)
-  const fallbackId = process.env.GUILD_ID || null;
-  if (fallbackId && fallbackId !== EMOJI_GUILD_ID && fallbackId !== curId) {
-    const id = await tryGuild(fallbackId);
-    if (id) return id;
-  }
+  const cur = interaction.guild?.id || null;
+  const id1 = await tryGuild(cur); if (id1) return id1;
+  const id2 = await tryGuild(EMOJI_GUILD_ID); if (id2) return id2;
+  const id3 = await tryGuild(process.env.GUILD_ID); if (id3) return id3;
   return null;
 }
-
-/** Resolve all emoji IDs we need in one go */
 async function getEmojiIds(interaction) {
   const ids = {};
   for (const [k, name] of Object.entries(EMOJI_NAMES)) {
@@ -96,8 +74,9 @@ async function getEmojiIds(interaction) {
   return ids;
 }
 
-/* -------- Embeds & UI -------- */
-function makePublicEmbed({ amount, showApple, emojiIds }) {
+/* ---------- Embeds & UI ---------- */
+/** Public embed (Apple Pay hidden) */
+function makePublicEmbed({ amount, emojiIds }) {
   const amt = `**$${amount.toFixed(2)}**`;
 
   const paypalLine =
@@ -112,12 +91,6 @@ function makePublicEmbed({ amount, showApple, emojiIds }) {
     emojiIds.cashapp ? `<:${EMOJI_NAMES.cashapp}:${emojiIds.cashapp}> **Cash App**: ${CASHAPP_TAG}`
                      : `🟢 **Cash App**: ${CASHAPP_TAG}`;
 
-  const appleInline = showApple
-    ? (emojiIds.applepay
-        ? `<:${EMOJI_NAMES.applepay}:${emojiIds.applepay}> **Apple Pay**: ${APPLE_PAY_INFO}`
-        : `🍎 **Apple Pay**: ${APPLE_PAY_INFO}`)
-    : null;
-
   const cryptoLine =
     emojiIds.solana ? `<:${EMOJI_NAMES.solana}:${emojiIds.solana}> **Crypto**: ${CRYPTO_TEXT}`
                     : `🪙 **Crypto**: ${CRYPTO_TEXT}`;
@@ -128,7 +101,6 @@ function makePublicEmbed({ amount, showApple, emojiIds }) {
     paypalLine,
     zelleLine,
     cashLine,
-    ...(appleInline ? [appleInline] : []),
     cryptoLine,
   ].join("\n");
 
@@ -140,9 +112,7 @@ function makePublicEmbed({ amount, showApple, emojiIds }) {
 }
 
 function makeButtons(amount, emojiIds) {
-  const row = new ActionRowBuilder();
-
-  row.addComponents(
+  return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setStyle(ButtonStyle.Primary)
       .setLabel("PayPal")
@@ -173,8 +143,6 @@ function makeButtons(amount, emojiIds) {
       .setCustomId(`pay:crypto:${amount}`)
       .setEmoji(emojiIds.solana ? { id: emojiIds.solana } : "🪙"),
   );
-
-  return row;
 }
 
 function buildFollowup(method, amount) {
@@ -201,7 +169,7 @@ function buildFollowup(method, amount) {
       `Amount: ${amt}`,
       "",
       method === "paypal"
-        ? `**PayPal:** ${PAYPAL_HANDLE}\n[FNF Only](${buildPayPalLink(PAYPAL_HANDLE, Number(amount))})`
+        ? `**PayPal:** ${PAYPAL_HANDLE}\n[Open PayPal](${buildPayPalLink(PAYPAL_HANDLE, Number(amount))})`
         : method === "zelle"
         ? `**Zelle:**\n# ${ZELLE_HANDLE}\n\n_Pay via your banking app_`
         : method === "cashapp"
@@ -231,7 +199,7 @@ function buildFollowup(method, amount) {
   return { embeds: [embed], components: row ? [row] : [] };
 }
 
-/* -------- Slash Command -------- */
+/* ---------- Slash Command ---------- */
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("payment")
@@ -241,19 +209,10 @@ module.exports = {
         .setName("amount")
         .setDescription("Amount to pay ($)")
         .setRequired(true)
-    )
-    .addStringOption((o) =>
-      o
-        .setName("method")
-        .setDescription("Optional: select Apple Pay to show it inline")
-        .setRequired(false)
-        .addChoices({ name: "Apple Pay", value: "applepay" })
     ),
 
   async execute(interaction) {
-    const method = interaction.options.getString("method") || null;
     const amount = interaction.options.getNumber("amount");
-
     if (Number.isNaN(amount) || amount <= 0) {
       return interaction.reply({
         content: "❌ Please provide a valid amount greater than 0.",
@@ -261,17 +220,14 @@ module.exports = {
       });
     }
 
-    // Resolve emoji IDs by name (works across servers/DMs if the bot can see that guild)
     const emojiIds = await getEmojiIds(interaction);
 
-    // Public message + buttons
-    const embed = makePublicEmbed({ amount, showApple: method === "applepay", emojiIds });
+    const embed = makePublicEmbed({ amount, emojiIds });
     const buttons = makeButtons(amount, emojiIds);
 
     await interaction.reply({ embeds: [embed], components: [buttons] });
     const sent = await interaction.fetchReply();
 
-    // Collector (10 min)
     const filter = (i) => i.customId?.startsWith("pay:") && i.message.id === sent.id;
     const collector = sent.createMessageComponentCollector({
       filter,
