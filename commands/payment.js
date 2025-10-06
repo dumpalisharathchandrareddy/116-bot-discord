@@ -1,29 +1,124 @@
 // commands/payment.js
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} = require("discord.js");
 
-// Optional: let amounts/handles live in env so you can update without code changes
-const CASHAPP_TAG = process.env.CASHAPP_TAG || "$jabed22";
-const ZELLE_HANDLE = process.env.ZELLE_HANDLE || "csharath301@protonmail.com";
-const PAYPAL_HANDLE = process.env.PAYPAL_HANDLE || "9592401891";
-const APPLE_PAY_HANDLE = process.env.APPLE_PAY_HANDLE || "csharath301@icloud.com";
-const CRYPTO_TEXT = process.env.CRYPTO_TEXT || "DM me for the Crypto address!";
+/* ENV CONFIG */
+const CASHAPP_TAG   = process.env.CASHAPP_TAG   || "$jabed22";
+const CASHAPP_LINK  = process.env.CASHAPP_LINK  || "https://cash.app/$jabed22";
+const ZELLE_HANDLE  = process.env.ZELLE_HANDLE  || "csharath301@protonmail.com";
+const PAYPAL_HANDLE = process.env.PAYPAL_HANDLE || "SDumpali";
+const PAYPAL_LINK   = process.env.PAYPAL_LINK   || "https://www.paypal.me/SDumpali";
+const APPLE_PAY_INFO = process.env.APPLE_PAY_INFO || "csharath301@icloud.com";
+const CRYPTO_TEXT    = process.env.CRYPTO_TEXT    || "DM me for the crypto address!";
 
-// Owner-role helper
-function isServerOwnerOrOwnerRole(interaction) {
-  const ownerRoleId = process.env.OWNER_ROLE_ID; // set in Railway
-  const isOwner = interaction.user.id === interaction.guild.ownerId;
-  const hasOwnerRole = ownerRoleId
-    ? interaction.member?.roles?.cache?.has(ownerRoleId)
-    : false;
-  return isOwner || hasOwnerRole;
+/* EMOJIS */
+const PAYPAL_EMOJI   = process.env.PAYPAL_EMOJI   || "🅿️";
+const ZELLE_EMOJI    = process.env.ZELLE_EMOJI    || "🟣";
+const CASHAPP_EMOJI  = process.env.CASHAPP_EMOJI  || "🟢";
+const APPLEPAY_EMOJI = process.env.APPLEPAY_EMOJI || "🍎";
+const CRYPTO_EMOJI   = process.env.CRYPTO_EMOJI   || "₿";
+
+/* URL BUILDERS */
+function appendAmount(url, amount) {
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.has("amount")) u.searchParams.set("amount", amount.toFixed(2));
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+function buildCashAppLink(tag, amount) {
+  if (CASHAPP_LINK) return appendAmount(CASHAPP_LINK, amount);
+  return `https://cash.app/${encodeURIComponent(tag.replace(/^\$/, "$"))}`;
+}
+function buildPayPalLink(handle, amount) {
+  if (PAYPAL_LINK) return appendAmount(PAYPAL_LINK, amount);
+  if (/^[a-z0-9_.-]+$/i.test(handle)) {
+    return `https://www.paypal.me/${encodeURIComponent(handle)}/${amount.toFixed(2)}`;
+  }
+  return "https://www.paypal.me/";
+}
+
+/* BUTTON ROW (PayPal + Cash App) */
+function makeButtons(amount) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setStyle(ButtonStyle.Link)
+      .setLabel("PayPal")
+      .setURL(buildPayPalLink(PAYPAL_HANDLE, amount)),
+    new ButtonBuilder()
+      .setStyle(ButtonStyle.Link)
+      .setLabel("Cash App")
+      .setURL(buildCashAppLink(CASHAPP_TAG, amount))
+  );
+}
+
+/* EMBED: main payment details */
+function buildPaymentEmbed({ amount, highlight }) {
+  const amt = `**$${amount.toFixed(2)}**`;
+  const hl = (n) => (n === highlight ? "__**" + n + "**__" : "**" + n + "**");
+
+  const lines = [
+    `💰 ${amt} please 😄`,
+    "",
+    `${PAYPAL_EMOJI} ${hl("PayPal")}: ${PAYPAL_HANDLE} *(FNF only)*`,
+    `${ZELLE_EMOJI} ${hl("Zelle")}: ${ZELLE_HANDLE}`,
+    `${CASHAPP_EMOJI} ${hl("Cash App")}: ${CASHAPP_TAG}`,
+    ...(highlight === "applepay" ? [`${APPLEPAY_EMOJI} ${hl("Apple Pay")}: ${APPLE_PAY_INFO}`] : []),
+    `${CRYPTO_EMOJI} ${hl("Crypto")}: ${CRYPTO_TEXT}`,
+  ].join("\n");
+
+  return new EmbedBuilder()
+    .setColor(0x22c55e)
+    .setTitle("💳 Payment Options")
+    .setDescription(lines)
+    .setFooter({ text: "Payments - Secure and Fast" });
+}
+
+/* EMBED: individual method card (private follow-up) */
+function buildDirectMethodCard(method, amount) {
+  const pretty =
+    method === "paypal"   ? "Pay with PayPal"
+    : method === "cashapp"  ? "Pay with Cash App"
+    : method === "zelle"    ? "Pay with Zelle"
+    : method === "applepay" ? "Pay with Apple Pay"
+    : method === "crypto"   ? "Pay with Crypto"
+    : "Pay Now";
+
+  let url = "";
+  if (method === "paypal")  url = buildPayPalLink(PAYPAL_HANDLE, amount);
+  if (method === "cashapp") url = buildCashAppLink(CASHAPP_TAG, amount);
+
+  const embed = new EmbedBuilder()
+    .setColor(0x2b6cb0)
+    .setTitle(`Click Here to ${pretty}`)
+    .setDescription(
+      url
+        ? `Amount: **$${amount.toFixed(2)}**`
+        : `Amount: **$${amount.toFixed(2)}**\n\n_No direct link for this method — use the details above._`
+    );
+
+  const row = url
+    ? new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(pretty).setURL(url)
+      )
+    : null;
+
+  return { embed, row };
 }
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("payment")
-    .setDescription("Show payment info (Only for you!)")
-    .addStringOption((option) =>
-      option
+    .setDescription("Show payment options (with live buttons)")
+    .addStringOption((o) =>
+      o
         .setName("method")
         .setDescription("Choose payment method")
         .setRequired(true)
@@ -32,84 +127,43 @@ module.exports = {
           { name: "Zelle", value: "zelle" },
           { name: "PayPal", value: "paypal" },
           { name: "Apple Pay", value: "applepay" },
-          { name: "Crypto", value: "crypto" },
-        ),
+          { name: "Crypto", value: "crypto" }
+        )
     )
-    .addNumberOption((option) =>
-      option
+    .addNumberOption((o) =>
+      o
         .setName("amount")
         .setDescription("Amount to pay ($)")
-        .setRequired(true),
+        .setRequired(true)
     ),
 
   async execute(interaction) {
-    // Ensure it’s used in a guild (slash commands usually are, but just in case)
-    if (!interaction.inGuild?.() && !interaction.guild) {
-      return interaction.reply({ content: "This command can only be used in a server.", ephemeral: false });
-    }
-
-    // ✅ Permission: only server owner or members with OWNER_ROLE_ID
-    if (!isServerOwnerOrOwnerRole(interaction)) {
-      return interaction.reply({
-        content: "❌ You are not allowed to use this command.",
-        ephemeral: true,
-      });
-    }
-
     const method = interaction.options.getString("method");
     const amount = interaction.options.getNumber("amount");
 
     if (Number.isNaN(amount) || amount <= 0) {
-      return interaction.reply({ content: "Please provide a valid amount greater than 0.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ Please provide a valid amount greater than 0.",
+        ephemeral: true,
+      });
     }
 
-    let paymentInfo = "";
-    let paymentLabel = "";
+    // 🟩 Main embed (public so others see it)
+    const embed = buildPaymentEmbed({ amount, highlight: method });
+    const buttons = makeButtons(amount);
 
-    switch (method) {
-      case "cashapp":
-        paymentLabel = "CashApp Tag";
-        paymentInfo = CASHAPP_TAG;
-        break;
-      case "zelle":
-        paymentLabel = "Zelle";
-        paymentInfo = ZELLE_HANDLE;
-        break;
-      case "paypal":
-        paymentLabel = "PayPal";
-        paymentInfo = PAYPAL_HANDLE;
-        break;
-      case "applepay":
-        paymentLabel = "Apple Pay";
-        paymentInfo = APPLE_PAY_HANDLE;
-        break;
-      case "crypto":
-        paymentLabel = "Crypto";
-        paymentInfo = CRYPTO_TEXT;
-        break;
-      default:
-        paymentLabel = "Payment";
-        paymentInfo = "Invalid payment method!";
-    }
+    await interaction.reply({
+      embeds: [embed],
+      components: [buttons],
+      ephemeral: false, // visible to everyone
+    });
 
-    // Nicely emphasized amount line
-    const bigAmount =
-      `\n\n` +
-      "Amount: " +
-      `**__ $ ${amount.toFixed(2)} __**\n`;
-
-    const embed = new EmbedBuilder()
-      .setTitle("🟩 Payment Information 🟩")
-      .setDescription(
-        `**${paymentLabel}:**\n` +
-        `\`\`\`\n${paymentInfo}\n\`\`\`` +
-        `${bigAmount}` +
-        `\n**Ping me after payment is done!**`,
-      )
-      .setColor(0x00d26a)
-      .setFooter({ text: "Payments - Secure and Fast" });
-
-    // Make it private to the invoker
-    await interaction.reply({ embeds: [embed], ephemeral: false });
+    // 🟦 Private follow-up card (for who ran the command)
+    const { embed: directEmbed, row } = buildDirectMethodCard(method, amount);
+    await interaction.followUp({
+      embeds: [directEmbed],
+      components: row ? [row] : [],
+      ephemeral: true, // visible only to command user
+    });
   },
 };

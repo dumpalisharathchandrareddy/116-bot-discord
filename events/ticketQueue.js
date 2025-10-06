@@ -30,7 +30,7 @@ module.exports = (client) => {
       );
 
       const position = Math.max(1, sorted.findIndex((c) => c.id === channel.id) + 1);
-      const estimatedWait = position * 7; // minutes
+      const estimatedWait = position * 2; // minutes
 
       const embed = new EmbedBuilder()
         .setTitle("🎟️ Ticket Queue Info")
@@ -56,9 +56,9 @@ module.exports = (client) => {
 
       await channel.send({ content: mentionLine || null, embeds: [embed] });
 
-      await channel.send(
-        "📦 **Please send your cart link here in the chat and also mention your city!** 🏙️"
-      );
+      // await channel.send(
+      //   "📦 **Please send your cart link here in the chat and also mention your city!** 🏙️"
+      // );
     } catch (err) {
       console.error("ticket ChannelCreate handler error:", err);
     }

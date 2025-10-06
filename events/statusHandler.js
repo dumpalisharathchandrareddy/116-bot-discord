@@ -67,12 +67,8 @@ module.exports = {
 
 **GAME (0rder) Promo Update**
 GAME offers:
-**$20 OFF on $20 subtotal**
-
-> Add **exactly $20** to your cart to make full use of the promo.
-> Less than $20 = no discount.
-
-**Any Place (store)**
+**$20 OFF on $20 subtotal** (Any Store)        - #$5.5 fee + taxes
+**$25 OFF on Any subtotal** (Selected Stores)  - #$8.0 fee + taxes
 
 📦 Make multiple LINKS for large GAMES (0rders)
 📣 Expect a queue — respond to pings ASAP

@@ -52,9 +52,9 @@ module.exports = (client) => {
         [newChannel.id, Date.now()]
       );
 
-      await newChannel.send(
-        "✅ This ticket has been marked as completed; will be **automatically deleted in 2 hours**. Thank you!"
-      );
+      // await newChannel.send(
+      //   "✅ This ticket has been marked as completed; will be **automatically deleted in 2 hours**. Thank you!"
+      // );
     }
   });
 };
