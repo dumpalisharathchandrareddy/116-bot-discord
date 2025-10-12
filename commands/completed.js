@@ -60,12 +60,7 @@ async function completeTicketCore({ client, actorUserId, channel }) {
     }
   }
 
-  // ✅ Confirmation Message
-  await channel.send(
-    `✅ <@${ticketOwnerId}>, Your order has been marked as completed by <@${actorUserId}>, will automatically be deleted in ⏳ **2 hours**!\n`
-  );
-
-  // ── Ping ticket opener + short vouch prompt ──
+  // ── Determine ticket opener for mention ──
   let ticketOwnerId = null;
 
   // 1) Try channel.topic (Ticket Tool stores ID there)
@@ -84,7 +79,14 @@ async function completeTicketCore({ client, actorUserId, channel }) {
     }
   }
 
-  // 3) Send the short thank-you / vouch prompt
+  // ✅ Confirmation Message (after resolving ticketOwnerId)
+  await channel.send(
+    ticketOwnerId
+      ? `✅ <@${ticketOwnerId}>, your order has been marked as completed by <@${actorUserId}> and this ticket will automatically be deleted in ⏳ **2 hours**!`
+      : `✅ This ticket has been marked as completed by <@${actorUserId}> and will automatically be deleted in ⏳ **2 hours**!`
+  );
+
+  // 3) If you want an extra vouch prompt, uncomment below:
   // if (ticketOwnerId) {
   //   await channel.send(
   //     `📦 <@${ticketOwnerId}>, your order is **complete** — thanks!\n` +
