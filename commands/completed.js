@@ -62,7 +62,7 @@ async function completeTicketCore({ client, actorUserId, channel }) {
 
   // ✅ Confirmation Message
   await channel.send(
-    `✅ This ticket has been marked as completed by <@${actorUserId}>, will automatically be deleted in ⏳ **2 hours**!\n`
+    `✅ <@${ticketOwnerId}>, Your order has been marked as completed by <@${actorUserId}>, will automatically be deleted in ⏳ **2 hours**!\n`
   );
 
   // ── Ping ticket opener + short vouch prompt ──
