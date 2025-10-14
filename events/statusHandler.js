@@ -62,19 +62,23 @@ module.exports = {
         mentionTag = "@everyone";
         statusEmbed = new EmbedBuilder()
           .setTitle("🟢 STATUS: NOW OPEN")
-          .setDescription(
-            `✅ **We are currently taking orders!**
-
-**GAME (0rder) Promo Update**
-GAME offers:
-**$20 OFF on $20 sub**  $6.5 fee + taxes
-**$25 OFF on Any sub**  $8.0 fee + taxes
-
-📦 Make multiple LINKS for large GAMES (0rders)
-📣 Expect a queue — respond to pings ASAP
-
-🛒 Place your group GAME (0rder) now!`
-          )
+          .setDescription([
+            "**✅ We are currently taking orders!**",
+            "",
+            "Available promos:",
+            "",
+            "> **GAME offers**",
+            "> • **$20 OFF on $20 subtotal** — `$6.50 fee + taxes`",
+            "> • **$25 OFF on any subtotal** — `$8.00 fee + taxes`",
+            "",
+            "> **Place your order**",
+            "> Open a ticket in <#1405985928752922624> now!",
+            "",
+            "> **Tips**",
+            "> 📦 Make multiple **links** for large GAME (orders)",
+            "> 📣 Expect a queue — respond to pings ASAP"
+          ].join("\n"))
+                    
           .setImage("https://media.giphy.com/media/BuixK83naJThKrTDXF/giphy.gif")
           .setColor(0x00ff66)
           .setFooter({ text: "Updated by Info Bot • OPEN for orders" })
