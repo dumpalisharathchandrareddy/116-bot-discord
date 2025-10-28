@@ -36,9 +36,9 @@ module.exports = (client) => {
         .setTitle("🎟️ Ticket Queue Info")
         .setDescription(
           `⏳ You are **#${position}** in line.\n` +
-          `**Estimated wait:** \`${estimatedWait} minutes\`\n\n` +
-          `Please be patient — our staff will assist you as soon as possible!\n\n` +
-          `> If you have urgent info, please add it here.`
+          `**Estimated wait:** \`${estimatedWait} minutes\`\n\n`
+          // `Please be patient — our staff will assist you as soon as possible!\n\n` +
+          // `> If you have urgent info, please add it here.`
         )
         .setColor(0x5865f2)
         .setFooter({ text: "Thank you for ordering from 116's UE!" })

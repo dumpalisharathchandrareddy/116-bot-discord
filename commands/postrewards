@@ -1,0 +1,49 @@
+const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName("postrewards")
+    .setDescription("Post the 116 Rewards & Vouches embed")
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+
+  async execute(interaction) {
+    const guild = interaction.guild;
+
+    const embed = {
+      title: "🥳 116 Rewards & Vouches",
+      color: 0xfee75c,
+      description: `
+💸 **Invite Reward — 50% Off Fee**  
+Invite a friend and have them mention you in their ticket — once they place an order, you’ll unlock **50% off your next fee!**  
+╰・There is **no limit** on how many times you can use this!
+
+🔥 **4-Day Streak = No Fee Order**  
+Order **4 days in a row**, and your **5th order** is completely fee-free.  
+╰・Ordering 4 times in one day / less than 4 days **does not count.**
+
+⭐ **Vouch Points — 50% Off Fee**  
+For every **5 points** you earn by vouching with food pics, you can redeem **50% off** your next order fee.  
+╰・Post your food in ⁠✅︱vouches after ordering to earn **1 point!**
+
+🐱 **Vouch Points — 100% Off Fee**  
+For every **10 points** you earn by vouching with food pics, you can redeem **100% off** your next order fee.  
+╰・Post your food in ⁠✅︱vouches after ordering to earn **1 point!**
+      `,
+      thumbnail: {
+        url: guild.iconURL({ dynamic: true, size: 1024 }), // auto uses your server logo
+      },
+      footer: {
+        text: `${guild.name} • Quick Feast Rewards`,
+        icon_url: guild.iconURL({ dynamic: true, size: 512 }),
+      },
+      timestamp: new Date(),
+    };
+
+    await interaction.reply({
+      content: "✅ Rewards embed posted!",
+      ephemeral: true,
+    });
+
+    await interaction.channel.send({ embeds: [embed] });
+  },
+};

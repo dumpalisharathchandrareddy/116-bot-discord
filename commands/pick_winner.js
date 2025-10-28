@@ -4,6 +4,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  EmbedBuilder,
 } = require("discord.js");
 const pool = require("../db");
 
@@ -58,7 +59,7 @@ module.exports = {
         ephemeral: true,
       });
 
-      // Use a channel collector for maximum reliability; filter to just this interaction's buttons
+      // Collector for confirm/retry actions
       const collector = interaction.channel.createMessageComponentCollector({
         filter: (i) =>
           i.user.id === interaction.user.id &&
@@ -69,7 +70,6 @@ module.exports = {
 
       collector.on("collect", async (i) => {
         if (i.customId === "retry_winner") {
-          // Ensure a new winner (when possible)
           let next;
           do {
             next = pickRandom();
@@ -85,32 +85,46 @@ module.exports = {
         }
 
         if (i.customId === "confirm_winner") {
-          // Lock the ephemeral UI
+          // Lock interface
           await i.update({
             content: `✅ Winner confirmed: <@${currentWinnerId}>`,
             components: [],
           });
 
-          // Public announce
-          await interaction.channel.send(
-            `🎉 **Congratulations <@${currentWinnerId}>!** You won today's giveaway! 🎁\n` +
-              `👉 Your next order will be **NO SERVICE FEE** (Uber fees & food still paid)\n\n` +
-              `🕒 Please claim your prize within **24 hours** by opening a ticket — or it will be **invalid**.`
-          );
+          // 🎉 Create giveaway winner embed
+          const winnerEmbed = new EmbedBuilder()
+            .setColor(0xf1c40f)
+            .setTitle("🎉 Congratulations!")
+            .setDescription(
+              `🥳 **<@${currentWinnerId}>**, you’ve won today’s giveaway!\n\n` +
+              `🍽️ Your next order is **fee-free!**\n` +
+              `⏰ Claim within **24h** by opening a ticket.`
+            )
+            .setFooter({ text: "116 | Daily Giveaway" })
+            .setTimestamp();
 
-          // DM winner (best effort)
+          // Public announcement
+          await interaction.channel.send({ embeds: [winnerEmbed] });
+
+          // 📨 DM the winner (best effort)
           try {
             const user = await interaction.client.users.fetch(currentWinnerId);
-            await user.send(
-              `🎉 You’ve been selected as the **winner** of today’s giveaway!\n\n` +
-                `👉 Your next order will be **NO SERVICE FEE** (Uber fees & food still paid)\n` +
-                `🕒 Please claim your prize within **24 hours** by opening a ticket — or it will be **invalid**.\n\n` +
-                `If you believe this is a mistake, please contact staff.`
-            );
+            const dmEmbed = new EmbedBuilder()
+              .setColor(0xf1c40f)
+              .setTitle("🎉 You Won the 116 Giveaway!")
+              .setDescription(
+                `Hey <@${currentWinnerId}>! You’ve been selected as **today’s giveaway winner!** 🎁\n\n` +
+                `🍽️ Your next order is **fee-free** (Uber fees & food still apply).\n` +
+                `⏰ Claim your reward within **24 hours** by opening a ticket.`
+              )
+              .setFooter({ text: "116 | Daily Giveaway" })
+              .setTimestamp();
+
+            await user.send({ embeds: [dmEmbed] });
           } catch (err) {
             console.warn(`⚠️ Could not DM winner (${currentWinnerId}):`, err);
             await interaction.followUp({
-              content: `⚠️ I couldn’t DM <@${currentWinnerId}>. They might have DMs off.`,
+              content: `⚠️ I couldn’t DM <@${currentWinnerId}>. They might have DMs turned off.`,
               ephemeral: true,
             });
           }
@@ -121,13 +135,14 @@ module.exports = {
 
       collector.on("end", async (_collected, reason) => {
         if (reason !== "confirmed") {
-          // Timeout path: clean up the ephemeral message if still editable
           try {
             await interaction.editReply({
               content: "⏱️ Timed out. No winner was confirmed.",
               components: [],
             });
-          } catch { /* ignore if already edited/removed */ }
+          } catch {
+            /* ignored */
+          }
         }
       });
     } catch (error) {

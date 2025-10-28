@@ -1,10 +1,9 @@
-// commands/completed.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require("discord.js");
 const pool = require("../db");
 
-const COMPLETED_CATEGORY_ID = process.env.COMPLETED_CATEGORY_ID; // ID of the Completed Tickets category
-const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;               // ID of the log channel for completed tickets
-const CUSTOMER_ROLE_ID = process.env.CUSTOMER_ROLE_ID;           // ID of the Customer role to assign
+const COMPLETED_CATEGORY_ID = process.env.COMPLETED_CATEGORY_ID;
+const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
+const CUSTOMER_ROLE_ID = process.env.CUSTOMER_ROLE_ID;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 const OWNER_ID = "666746569193816086";
 
@@ -29,10 +28,10 @@ async function completeTicketCore({ client, actorUserId, channel }) {
     }
   }
 
-  // ✅ Set parent to Completed category
+  // ✅ Move to Completed category
   await channel.setParent(COMPLETED_CATEGORY_ID, { lockPermissions: false });
 
-  // ✅ Track or update completed timestamp
+  // ✅ Track completed timestamp
   await pool.query(
     `INSERT INTO completed_tickets (ticket_id, completed_at)
      VALUES ($1, $2)
@@ -40,7 +39,7 @@ async function completeTicketCore({ client, actorUserId, channel }) {
     [channel.id, now]
   );
 
-  // ✅ Track member (non-staff) orders & give Customer role
+  // ✅ Track customers and add Customer role
   const members = channel.members;
   for (const member of members.values()) {
     if (member.user.bot) continue;
@@ -51,7 +50,7 @@ async function completeTicketCore({ client, actorUserId, channel }) {
       await member.roles.add(CUSTOMER_ROLE_ID).catch(() => {});
     }
 
-    // Update or insert order count
+    // Update or insert user order count
     const res = await pool.query("SELECT * FROM user_orders WHERE user_id = $1", [member.id]);
     if (res.rows.length === 0) {
       await pool.query("INSERT INTO user_orders (user_id, total_orders) VALUES ($1, 1)", [member.id]);
@@ -60,16 +59,13 @@ async function completeTicketCore({ client, actorUserId, channel }) {
     }
   }
 
-  // ── Determine ticket opener for mention ──
+  // ── Determine ticket opener (Ticket Tool → fallback to non-staff) ──
   let ticketOwnerId = null;
-
-  // 1) Try channel.topic (Ticket Tool stores ID there)
   if (channel.topic) {
-    const m = channel.topic.match(/\d{17,19}/); // any 17-19-digit ID
+    const m = channel.topic.match(/\d{17,19}/);
     if (m) ticketOwnerId = m[0];
   }
 
-  // 2) Fallback: first non-bot, non-staff member in the channel
   if (!ticketOwnerId) {
     for (const m of channel.members.values()) {
       if (!m.user.bot && !m.roles.cache.has(STAFF_ROLE_ID)) {
@@ -79,30 +75,69 @@ async function completeTicketCore({ client, actorUserId, channel }) {
     }
   }
 
-  // ✅ Confirmation Message (after resolving ticketOwnerId)
-  await channel.send(
-    ticketOwnerId
-      ? `✅ <@${ticketOwnerId}>, your order has been marked as completed by <@${actorUserId}> and this ticket will automatically be deleted in ⏳ **2 hours**!`
-      : `✅ This ticket has been marked as completed by <@${actorUserId}> and will automatically be deleted in ⏳ **2 hours**!`
-  );
+  // ✅ Log order date in DB (for streak tracking)
+if (ticketOwnerId) {
+  try {
+    // Ensure the 'orders' table exists before inserting
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        order_date TIMESTAMP NOT NULL DEFAULT NOW(),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
 
-  // 3) If you want an extra vouch prompt, uncomment below:
-  // if (ticketOwnerId) {
-  //   await channel.send(
-  //     `📦 <@${ticketOwnerId}>, your order is **complete** — thanks!\n` +
-  //     `💬 Like the service? Drop a quick vouch in <#1405983244096372839>, tag <@&1405978890970861579>, and enter <#1405983236886102217>!`
-  //   );
-  // }
+    // Insert the order record
+    await pool.query("INSERT INTO orders (user_id, order_date) VALUES ($1, NOW())", [ticketOwnerId]);
+    console.log(`✅ Logged order for user ${ticketOwnerId}`);
+  } catch (err) {
+    console.error("❌ Failed to log order date:", err);
+  }
+}
 
-  // ✅ Log to Log Channel
+
+  // ── Build Embeds ──
+  const actor = await channel.guild.members.fetch(actorUserId);
+
+  // 🎯 Ticket Completion Embed
+  const completeEmbed = new EmbedBuilder()
+    .setColor(0x57f287)
+    .setDescription(
+      ticketOwnerId
+        ? `✅ <@${ticketOwnerId}>, your order has been marked as **completed**!\nMarked by: **${actor.user.username}**\n\n🕒 This ticket will be deleted in **2 hours**.`
+        : `✅ This order has been marked as **completed** by **${actor.user.username}**.\n\n🕒 This ticket will be deleted in **2 hours**.`
+    )
+    .setFooter({ text: "116 | Order Completion" })
+    .setTimestamp();
+
+  await channel.send({
+    embeds: [completeEmbed],
+    allowedMentions: ticketOwnerId ? { users: [ticketOwnerId] } : { parse: [] },
+  });
+
+  // 🗂️ Log Embed
   const logChannel = channel.guild.channels.cache.get(LOG_CHANNEL_ID);
   if (logChannel) {
-    await logChannel.send(
-      `🗂️ Ticket \`${channel.name}\` was marked as completed by <@${actorUserId}> at <t:${Math.floor(now / 1000)}:f>.`
-    );
+    const logEmbed = new EmbedBuilder()
+      .setColor(0xf1c40f)
+      .setTitle("🎟️ Ticket Completed")
+      .setDescription(
+        `**Ticket:** ${channel.name}\n` +
+        `**Marked by:** ${actor.user.username}\n` +
+        (ticketOwnerId ? `**Customer:** <@${ticketOwnerId}>\n` : "") +
+        `**Time:** <t:${Math.floor(now / 1000)}:f>`
+      )
+      .setFooter({ text: "116 | Ticket Logs" })
+      .setTimestamp();
+
+    await logChannel.send({
+      embeds: [logEmbed],
+      allowedMentions: ticketOwnerId ? { users: [ticketOwnerId] } : { parse: [] },
+    });
   }
 
-  // ✅ Schedule auto-delete in 2 hrs
+  // 🕒 Schedule auto-delete in 2 hours
   setTimeout(async () => {
     try {
       await channel.delete();
@@ -112,13 +147,13 @@ async function completeTicketCore({ client, actorUserId, channel }) {
   }, 2 * 60 * 60 * 1000);
 }
 
+// ── Command Export ──
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("completed")
-    .setDescription("Mark this ticket completed, update owed and orders (Staff only)")
+    .setDescription("Mark this ticket as completed, update owed/orders, and log it (Staff only)")
     .setDefaultMemberPermissions(null),
 
-  // Original slash-command behavior (unchanged)
   async execute(interaction) {
     if (!interaction.channel.name.startsWith("ticket-")) {
       return interaction.reply({
@@ -141,15 +176,14 @@ module.exports = {
         channel: interaction.channel,
       });
 
-      // ✅ Ephemeral Staff Summary
+      // ✅ Staff summary reply
       let staffMessage = `✅ Ticket moved and logged. Auto-close scheduled.`;
       if (interaction.user.id !== OWNER_ID) {
         const owedData = await pool.query("SELECT * FROM owed WHERE user_id = $1", [interaction.user.id]);
         const orders = owedData.rows[0]?.orders || 0;
         const total = owedData.rows[0]?.total || 0;
         staffMessage =
-          `✅ You (<@${interaction.user.id}>) have completed **${orders} orders** and owe **$${total}**.\n` +
-          `Ticket moved and logged. Auto-close scheduled.`;
+          `✅ You have completed **${orders} orders** and owe **$${total}**.\nTicket moved and logged. Auto-close scheduled.`;
       }
 
       await interaction.reply({ content: staffMessage, ephemeral: true });
@@ -163,14 +197,12 @@ module.exports = {
   },
 };
 
-// --- Bridge entry point: allow ue-tracker to trigger without a slash interaction ---
-module.exports.runDirect = async (client, { userId, channelId /* orderId, total unused */ }) => {
+// --- Bridge trigger entry point (ue-tracker integration) ---
+module.exports.runDirect = async (client, { userId, channelId }) => {
   try {
     const channel = await client.channels.fetch(channelId);
     if (!channel) throw new Error("Channel not found for runDirect");
 
-    // In bridge mode, we intentionally bypass staff-role checks,
-    // since ue-tracker is the trusted source.
     await completeTicketCore({
       client,
       actorUserId: userId,

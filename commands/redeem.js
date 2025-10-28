@@ -1,14 +1,13 @@
-// commands/redeem.js
 const { SlashCommandBuilder } = require("discord.js");
 const pool = require("../db");
 
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 
-// Canonical reward labels
+// ✅ Updated Reward Labels
 const REWARD_LABELS = {
-  7:  "5-in-5 Streak (5 orders in 5 days)",
-  15: "Fee-Free Order (waives $8 service fee)",
-  40: "Complete Free Order",
+  5:  "50% Off Fee (5 points)",
+  10: "100% Off Fee (10 points)",
+  4:  "4-Day Streak — No Fee Order", // Streak reward (manual if needed)
 };
 
 module.exports = {
@@ -23,19 +22,19 @@ module.exports = {
     )
     .addIntegerOption((option) =>
       option
-        .setName("points")
-        .setDescription("Choose a reward")
+        .setName("reward")
+        .setDescription("Select the reward to redeem")
         .setRequired(true)
         .addChoices(
-          { name: "7 pts — 5-in-5 Streak", value: 7 },
-          { name: "15 pts — Fee-Free Order", value: 15 },
-          { name: "40 pts — Complete Free Order", value: 40 },
+          { name: "5 pts — 50% Off Fee", value: 5 },
+          { name: "10 pts — 100% Off Fee", value: 10 },
+          { name: "4-Day Streak — No Fee Order", value: 4 },
         )
     ),
 
   async execute(interaction) {
     try {
-      // Staff check
+      // Staff permission check
       const member = await interaction.guild.members.fetch(interaction.user.id);
       const isStaff = STAFF_ROLE_ID && member.roles.cache.has(STAFF_ROLE_ID);
       if (!isStaff) {
@@ -46,64 +45,60 @@ module.exports = {
       }
 
       const user = interaction.options.getUser("user", true);
-      const pointsToDeduct = interaction.options.getInteger("points", true);
+      const rewardValue = interaction.options.getInteger("reward", true);
 
-      // Defensive: ensure it's one of our supported tiers
-      if (!(pointsToDeduct in REWARD_LABELS)) {
+      // Defensive check
+      if (!(rewardValue in REWARD_LABELS)) {
         return interaction.reply({
-          content: "❌ Invalid reward tier. Use 7, 15, or 40.",
+          content: "❌ Invalid reward tier. Use 4, 5, or 10.",
           ephemeral: true,
         });
       }
 
-      const rewardName = REWARD_LABELS[pointsToDeduct];
+      const rewardName = REWARD_LABELS[rewardValue];
 
-      // Fetch current points
-      const userResult = await pool.query(
-        "SELECT points FROM points WHERE user_id = $1",
-        [user.id]
-      );
-      const userPoints = Number(userResult.rows[0]?.points || 0);
-
-      if (userPoints < pointsToDeduct) {
+      // For 4-Day Streak, skip point deduction (manual streak)
+      if (rewardValue === 4) {
         return interaction.reply({
-          content: `❌ <@${user.id}> has **${userPoints}** points — not enough for **${pointsToDeduct}**.`,
+          content: `✅ <@${user.id}> has earned the **${rewardName}** reward! 🎉`,
+          allowedMentions: { users: [user.id] },
+        });
+      }
+
+      // Fetch user points
+      const res = await pool.query("SELECT points FROM points WHERE user_id = $1", [user.id]);
+      const currentPoints = Number(res.rows[0]?.points || 0);
+
+      if (currentPoints < rewardValue) {
+        return interaction.reply({
+          content: `❌ <@${user.id}> has **${currentPoints}** points — not enough for **${rewardValue}**.`,
           allowedMentions: { users: [user.id] },
           ephemeral: true,
         });
       }
 
-      // Deduct and confirm
-      await pool.query(
-        "UPDATE points SET points = points - $1 WHERE user_id = $2",
-        [pointsToDeduct, user.id]
-      );
+      // Deduct points
+      await pool.query("UPDATE points SET points = points - $1 WHERE user_id = $2", [
+        rewardValue,
+        user.id,
+      ]);
 
-      const updated = await pool.query(
-        "SELECT points FROM points WHERE user_id = $1",
-        [user.id]
-      );
+      const updated = await pool.query("SELECT points FROM points WHERE user_id = $1", [user.id]);
       const remaining = Number(updated.rows[0]?.points || 0);
 
-      // Public confirmation (mention the user)
+      // Confirmation
       await interaction.reply({
         content:
-          `✅ <@${user.id}> redeemed **${pointsToDeduct}** points for **${rewardName}**.\n` +
+          `✅ <@${user.id}> redeemed **${rewardValue}** points for **${rewardName}**.\n` +
           `Remaining balance: **${remaining}** point(s).`,
         allowedMentions: { users: [user.id] },
       });
     } catch (error) {
       console.error("redeem error:", error);
-      if (interaction.deferred || interaction.replied) {
-        return interaction.followUp({
-          content: "❌ An error occurred while processing the reward redemption.",
-          ephemeral: true,
-        });
-      }
-      return interaction.reply({
-        content: "❌ An error occurred while processing the reward redemption.",
-        ephemeral: true,
-      });
+      const msg = "❌ An error occurred while processing the reward redemption.";
+      if (interaction.deferred || interaction.replied)
+        return interaction.followUp({ content: msg, ephemeral: true });
+      return interaction.reply({ content: msg, ephemeral: true });
     }
   },
 };

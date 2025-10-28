@@ -14,14 +14,14 @@ module.exports = {
   async startGiveaway(interaction) {
     // Create the entry embed
     const embed = new EmbedBuilder()
-      .setTitle("🎁 Daily Giveaway - NO SERVICE FEE GAME (Order)!")
+      .setTitle("🎁 Daily Giveaway - NO SERVICE FEE!")
       .setDescription(
         [
           "✅ React with 🎁 to enter!",
           "Cost: **1 point**",
           "🎯 Giveaway winner will get a DM when announced.",
           "",
-          "**Prize:** Your next order will be **NO SERVICE FEE** (you still need to pay GAME (Order) fees)"
+          "**Prize:** Your next order will be **NO SERVICE FEE**"
         ].join("\n")
       )
       .setColor(0xffc107)
