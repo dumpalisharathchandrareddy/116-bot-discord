@@ -85,8 +85,8 @@ function makePublicEmbed({ amount, emojiIds, appleEnabled }) {
                     : `🅿️ **PayPal:** ${PAYPAL_HANDLE} *(FNF)*`;
 
   const venmoLine =
-    emojiIds.venmo ? `<:${EMOJI_NAMES.venmo}:${emojiIds.venmo}> **Venmo:** ${VENMO_HANDLE} *(Purchase Protection OFF)*`
-                   : `🔵 **Venmo:** ${VENMO_HANDLE} *(Purchase Protection OFF)*`;
+    emojiIds.venmo ? `<:${EMOJI_NAMES.venmo}:${emojiIds.venmo}> **Venmo:** ${VENMO_HANDLE} *(Protection OFF)*`
+                   : `🔵 **Venmo:** ${VENMO_HANDLE} *(Protection OFF)*`;
 
   const zelleLine =
     emojiIds.zelle ? `<:${EMOJI_NAMES.zelle}:${emojiIds.zelle}> **Zelle:** ${ZELLE_HANDLE}`
@@ -127,7 +127,8 @@ function makePublicEmbed({ amount, emojiIds, appleEnabled }) {
 
 /* ---------- Buttons ---------- */
 function makeButtons(amount, emojiIds, appleEnabled) {
-  return new ActionRowBuilder().addComponents(
+  // Split buttons across two rows (max 5 per ActionRow)
+  const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setStyle(ButtonStyle.Primary)
       .setLabel("PayPal")
@@ -157,14 +158,18 @@ function makeButtons(amount, emojiIds, appleEnabled) {
       .setLabel("Apple Pay")
       .setCustomId(`pay:applepay:${amount}`)
       .setEmoji(emojiIds.applepay ? { id: emojiIds.applepay } : "🍎")
-      .setDisabled(!appleEnabled),
+      .setDisabled(!appleEnabled)
+  );
 
+  const row2 = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setStyle(ButtonStyle.Danger)
       .setLabel("Crypto")
       .setCustomId(`pay:crypto:${amount}`)
-      .setEmoji(emojiIds.solana ? { id: emojiIds.solana } : "🪙"),
+      .setEmoji(emojiIds.solana ? { id: emojiIds.solana } : "🪙")
   );
+
+  return [row1, row2];
 }
 
 /* ---------- Follow-Up Embeds ---------- */
@@ -240,7 +245,7 @@ module.exports = {
     const embed = makePublicEmbed({ amount, emojiIds, appleEnabled });
     const buttons = makeButtons(amount, emojiIds, appleEnabled);
 
-    await interaction.reply({ embeds: [embed], components: [buttons] });
+    await interaction.reply({ embeds: [embed], components: buttons });
     const sent = await interaction.fetchReply();
 
     const filter = (i) => i.customId?.startsWith("pay:") && i.message.id === sent.id;
@@ -257,10 +262,12 @@ module.exports = {
     });
 
     collector.on("end", async () => {
-      const disabled = new ActionRowBuilder().addComponents(
-        buttons.components.map((b) => ButtonBuilder.from(b).setDisabled(true))
+      const disabled = buttons.map(row =>
+        new ActionRowBuilder().addComponents(
+          row.components.map(b => ButtonBuilder.from(b).setDisabled(true))
+        )
       );
-      await sent.edit({ components: [disabled] }).catch(() => {});
+      await sent.edit({ components: disabled }).catch(() => {});
     });
   },
 };
